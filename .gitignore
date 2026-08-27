@@ -1,0 +1,55 @@
+# Wildlife monitoring station — track config only, leave all data behind.
+
+# --- Media and capture fixtures -------------------------------------------
+*.mp4
+*.mkv
+*.jpg
+*.jpeg
+*.png
+*.wav
+*.mp3
+*.flac
+
+# --- Databases ------------------------------------------------------------
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# --- Logs -----------------------------------------------------------------
+*.log
+*.log.gz
+*.jsonl
+
+# --- Frigate --------------------------------------------------------------
+# Runtime state Frigate writes next to its config.
+frigate/config/.jwt_secret
+frigate/config/.exports
+frigate/config/.timeline
+frigate/config/.vacuum
+frigate/config/.search_stats.json
+frigate/config/model_cache/
+# Frigate rewrites this whenever you save the config through the UI.
+frigate/config/backup_config.yaml
+# Holds HomeKit pairing keys once a device pairs.
+frigate/config/go2rtc_homekit.yml
+
+# --- BirdNET-Go -----------------------------------------------------------
+# The live config carries a generated session secret and OAuth client secret.
+# Track birdnet-go/config/config.yaml.example instead.
+birdnet-go/config/config.yaml
+birdnet-go/config/.system_id
+# Downloaded at startup from the upstream model registry.
+birdnet-go/config/model-catalog.json
+birdnet-go/config/hls/
+birdnet-go/config/sessions/
+birdnet-go/config/diagnostics/
+birdnet-go/data/
+
+# --- Mosquitto ------------------------------------------------------------
+mosquitto/data/
+
+# --- Local overrides ------------------------------------------------------
+.env
+docker-compose.override.yml

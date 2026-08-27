@@ -1,0 +1,69 @@
+mqtt:
+  enabled: true
+  host: mosquitto
+  port: 1883
+  topic_prefix: frigate
+  stats_interval: 60
+
+detectors:
+  ov:
+    type: openvino
+    device: GPU          # NOT CPU — see gotchas
+
+model:
+  width: 300
+  height: 300
+  input_tensor: nhwc
+  input_pixel_format: bgr
+  path: /openvino-model/ssdlite_mobilenet_v2.xml
+  labelmap_path: /openvino-model/coco_91cl_bkgr.txt
+
+classification:
+  bird:
+    enabled: true        # disabled by default
+    threshold: 0.65      # default 0.9 is very high; start lower and tighten
+
+birdseye:
+  enabled: false         # pointless with one camera
+
+cameras:
+  feeder:
+    enabled: true
+    ffmpeg:
+      inputs:
+        - path: /media/frigate/feeder-fixture.mp4
+          input_args: -re -stream_loop -1
+          roles: [detect]
+    #ffmpeg:
+    #  hwaccel_args: []
+    #  inputs:
+    #    #- path: rtsp://<node_ip>:8554/cam
+    #    - path: rtsp://mediamtx:8554/feeder
+    #      roles: [detect]
+    detect:
+      enabled: true
+      width: 2028
+      height: 1520
+      fps: 10
+    objects:
+      track:
+        - bird
+        # - cat    # optional: catches squirrels/mammals, COCO has no squirrel
+    snapshots:
+      enabled: true
+      clean_copy: true     # un-annotated copy for iNat
+      timestamp: false
+      bounding_box: false
+      quality: 95          # default 70 leaves visible compression artifacts
+      retain:
+        default: 60
+    record:
+      enabled: true
+      alerts:
+        retain: {days: 30}
+      detections:
+        retain: {days: 30}
+    motion:
+      mask: 
+        0.001,0.498,0.094,0.353,0.224,0.341,0.349,0.185,0.737,0.199,0.76,0.394,0.757,0.521,0.746,0.68,0.688,0.999,0.994,0.992,0.996,0.009,0.002,0.006
+version: 0.17-0
