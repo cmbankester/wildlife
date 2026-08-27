@@ -31,6 +31,9 @@ src, dst = sys.argv[1], sys.argv[2]
 BLANK_PATH = {
     "birdnet.latitude":       "0",
     "birdnet.longitude":      "0",
+    # Without this the template claims a configured location while carrying
+    # 0/0, so a copied template looks set up when it is not.
+    "birdnet.locationconfigured": "false",
     "birdweather.id":         '""',
     "security.sessionsecret": '""',
 }

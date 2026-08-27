@@ -33,6 +33,14 @@ logging:
             max_size: 0
             max_age: 0
             max_rotated_files: 0
+        analysis.processor:
+            enabled: true
+            file_path: logs/actions.log
+            level: ""
+            console_also: true
+            max_size: 0
+            max_age: 0
+            max_rotated_files: 0
         api:
             enabled: true
             file_path: logs/api.log
@@ -45,6 +53,22 @@ logging:
             enabled: true
             file_path: logs/audio.log
             level: info
+            console_also: false
+            max_size: 0
+            max_age: 0
+            max_rotated_files: 0
+        audio.ffmpeg:
+            enabled: true
+            file_path: logs/audio.log
+            level: ""
+            console_also: false
+            max_size: 0
+            max_age: 0
+            max_rotated_files: 0
+        audiocore:
+            enabled: true
+            file_path: logs/audio.log
+            level: ""
             console_also: false
             max_size: 0
             max_age: 0
@@ -177,6 +201,14 @@ logging:
             max_size: 0
             max_age: 0
             max_rotated_files: 0
+        spectrogram.prerenderer:
+            enabled: true
+            file_path: logs/spectrogram.log
+            level: ""
+            console_also: false
+            max_size: 0
+            max_age: 0
+            max_rotated_files: 0
         support:
             enabled: true
             file_path: logs/support.log
@@ -251,18 +283,9 @@ realtime:
     interval: 15
     processingtime: false
     audio:
-        # No sources. The host has no capture hardware (arecord -l finds
-        # none) and compose maps no /dev/snd, so the previous
-        # "Sound Card 1 / sysdefault" entry could never bind -- it failed on
-        # every start with 'no device found matching "sysdefault"' and left
-        # BirdNET-Go running with zero active audio sources.
-        #
-        # Phase 4 supplies the real input: a dedicated mono mic published as
-        # its own RTSP stream, added under realtime.rtsp.streams rather than
-        # here. Until then this is honestly empty instead of noisily broken.
         sources: []
-        ffmpegpath: ""
-        soxpath: ""
+        ffmpegpath: /usr/bin/ffmpeg
+        soxpath: /usr/bin/sox
         streamtransport: sse
         export:
             debug: false
@@ -296,15 +319,15 @@ realtime:
             filters:
                 - type: HighPass
                   frequency: 100
-                  q: 0
+                  q: 0.707
                   gain: 0
-                  width: 0
+                  width: 1
                   passes: 0
                 - type: LowPass
                   frequency: 15000
-                  q: 0
+                  q: 0.707
                   gain: 0
-                  width: 0
+                  width: 1
                   passes: 0
         quietHours:
             enabled: false
@@ -412,15 +435,6 @@ realtime:
             monitoringinterval: 30
         ffmpegParameters: []
     mqtt:
-        # Locked decision #7: MQTT is the integration seam. Both Frigate and
-        # BirdNET-Go publish here so Phase 7 post-processing subscribes to one
-        # bus instead of polling two APIs, and so cross-modal correlation -- an
-        # audio and a visual detection within the same few seconds -- is
-        # possible at all.
-        #
-        # broker was tcp://localhost:1883, which from inside this container
-        # means this container. The service name is what resolves on the compose
-        # network.
         enabled: true
         debug: false
         broker: tcp://mosquitto:1883
@@ -677,7 +691,7 @@ notification:
               input_format: ""
               endpoints:
                 - url: https://hooks.slack.com/services/YOUR/WEBHOOK/PATH
-                  method: ""
+                  method: POST
                   headers: {}
                   timeout: 0s
                   auth:
