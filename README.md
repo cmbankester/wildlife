@@ -13,10 +13,12 @@ host — see [What this repo tracks](#what-this-repo-tracks).
 |---|---|---|---|
 | `mosquitto` | `eclipse-mosquitto:2` | 1883 | MQTT broker both detectors publish to |
 | `frigate` | `ghcr.io/blakeblackshear/frigate:stable` | 8971, 8554 | Camera object detection and recording |
-| `birdnet-go` | `ghcr.io/tphakala/birdnet-go:nightly` | 8080 | Acoustic bird identification |
+| `birdnet-go` | `ghcr.io/tphakala/birdnet-go:nightly` | 18080 | Acoustic bird identification |
 | `mediamtx` | `bluenviron/mediamtx:latest` | 18554 | RTSP restream source |
 
-Frigate's UI is on port 8971 (the authenticated one). BirdNET-Go's is on 8080.
+Frigate's UI is on port 8971 (the authenticated one). BirdNET-Go's is on 18080 -- the
+container still listens on 8080, but the 80xx band is contested on the host, so the
+published port uses the same 1-prefix convention as mediamtx's 18554.
 
 ## Layout
 

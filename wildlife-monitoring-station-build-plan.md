@@ -217,7 +217,7 @@ services:
     image: ghcr.io/tphakala/birdnet-go:nightly
     container_name: birdnet-go
     restart: unless-stopped
-    ports: ["8080:8080"]
+    ports: ["18080:8080"]   # host 8080 is contested; container still serves 8080
     environment:
       - TZ=America/Chicago
     volumes:
@@ -335,7 +335,7 @@ without thought.
 **Don't hand-write the YAML.** BirdNET-Go is under active nightly development
 with an onboarding wizard, a model gallery UI, and hot-reload settings — config
 keys have churned. Bring the container up and configure through the web UI at
-`:8080`.
+`:18080` (the container serves 8080; the host publishes 18080).
 
 - [ ] Set **location** — drives the range filter, which is a major false-positive
       reduction and directly useful given your known species list

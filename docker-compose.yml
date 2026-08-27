@@ -41,7 +41,11 @@ services:
     image: ghcr.io/tphakala/birdnet-go:nightly@sha256:233b94f1d3b27b261ec8d997364db0cb953f3e3b3362a89e9e22ad4a589143d6
     container_name: birdnet-go
     restart: unless-stopped
-    ports: ["8080:8080"]
+    # 18080, not 8080. The 80xx band is contested on this host -- mgr-cli
+    # binds 8090 -- and 8080 is the first port anything reaches for. Same
+    # 1-prefix convention mediamtx uses below to stay off Frigate's 8554.
+    # The container still listens on 8080; only the host side moves.
+    ports: ["18080:8080"]
     environment:
       - TZ=America/Chicago
     volumes:
