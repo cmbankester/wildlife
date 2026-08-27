@@ -30,12 +30,23 @@ cameras:
   feeder:
     enabled: true
     ffmpeg:
+      # Set explicitly, not because the value differs from what Frigate picks on
+      # its own, but because 0.17 auto-detects hwaccel and a commented-out block
+      # does NOT disable it -- the running process kept showing -hwaccel vaapi
+      # while the config looked clean. Verify with:
+      #   docker exec frigate ps aux | grep ffmpeg
+      #
+      # VA-API was recorded as failing in pass 11, but that was against a corrupt
+      # RTSP stream from the out-of-band publisher; hardware decoders reject
+      # invalid streams that software decode conceals. With Frigate looping the
+      # fixture directly it decodes clean: 6.54ms inference, 10.0 process_fps,
+      # ~15% iGPU. To force software decode for a comparison, use `hwaccel_args: []`
+      # -- an empty list, never a comment.
+      hwaccel_args: preset-vaapi
       inputs:
         - path: /media/frigate/feeder-fixture.mp4
           input_args: -re -stream_loop -1
           roles: [detect]
-    #ffmpeg:
-    #  hwaccel_args: []
     #  inputs:
     #    #- path: rtsp://<node_ip>:8554/cam
     #    - path: rtsp://mediamtx:8554/feeder

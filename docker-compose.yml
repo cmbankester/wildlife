@@ -9,7 +9,13 @@ services:
       - ./mosquitto/data:/mosquitto/data
 
   frigate:
-    image: ghcr.io/blakeblackshear/frigate:stable
+    # Pinned to 0.17.2-3d4dd3a (image built 2026-06-28). A floating :stable is a
+    # particular hazard here: Frigate answers an invalid config with silent safe
+    # mode -- which skips storage maintenance, event cleanup, and recording
+    # cleanup -- rather than a crash. A tag that moves under you can switch off
+    # cleanup with no signal at all. Update deliberately: docker compose pull,
+    # verify, commit the new digest.
+    image: ghcr.io/blakeblackshear/frigate:stable@sha256:d4351369984d4a9e2a49ac59736f6490856a7ea11f7790040746d21496967010
     container_name: frigate
     restart: unless-stopped
     privileged: true
@@ -29,7 +35,10 @@ services:
     depends_on: [mosquitto]
 
   birdnet-go:
-    image: ghcr.io/tphakala/birdnet-go:nightly
+    # Pinned to the nightly built 2026-08-23. The build plan notes BirdNET-Go's
+    # config keys have churned under active development, so an unpinned nightly
+    # can invalidate this config on any restart.
+    image: ghcr.io/tphakala/birdnet-go:nightly@sha256:233b94f1d3b27b261ec8d997364db0cb953f3e3b3362a89e9e22ad4a589143d6
     container_name: birdnet-go
     restart: unless-stopped
     ports: ["8080:8080"]
@@ -43,4 +52,9 @@ services:
     image: bluenviron/mediamtx:latest
     container_name: mediamtx
     restart: unless-stopped
+    # Bench-only. The build plan demotes the RTSP publisher path to "fallback /
+    # reference only" after it cost hours to corrupt-stream symptoms; Frigate
+    # loops the fixture itself now. Start it with:
+    #   docker compose --profile bench up -d
+    profiles: [bench]
     ports: ["18554:8554"]   # NOT 8554 — Frigate already binds that

@@ -251,21 +251,16 @@ realtime:
     interval: 15
     processingtime: false
     audio:
-        sources:
-            - name: Sound Card 1
-              device: sysdefault
-              gain: 0
-              models:
-                - birdnet
-              quietHours:
-                enabled: false
-                mode: ""
-                startTime: ""
-                endTime: ""
-                startEvent: ""
-                startOffset: 0
-                endEvent: ""
-                endOffset: 0
+        # No sources. The host has no capture hardware (arecord -l finds
+        # none) and compose maps no /dev/snd, so the previous
+        # "Sound Card 1 / sysdefault" entry could never bind -- it failed on
+        # every start with 'no device found matching "sysdefault"' and left
+        # BirdNET-Go running with zero active audio sources.
+        #
+        # Phase 4 supplies the real input: a dedicated mono mic published as
+        # its own RTSP stream, added under realtime.rtsp.streams rather than
+        # here. Until then this is honestly empty instead of noisily broken.
+        sources: []
         ffmpegpath: ""
         soxpath: ""
         streamtransport: sse
