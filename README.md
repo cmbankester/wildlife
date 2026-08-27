@@ -103,7 +103,7 @@ Ignored, and why:
 
 | Path | Reason |
 |---|---|
-| `birdnet-go/config/config.yaml` | Holds generated session and OAuth secrets |
+| `birdnet-go/config/config.yaml` | Holds generated session and OAuth secrets, API keys, and the station coordinates |
 | `birdnet-go/config/.system_id` | Per-install identifier |
 | `birdnet-go/config/model-catalog.json` | Downloaded from the upstream model registry |
 | `birdnet-go/data/` | Detection database, clips, and logs |
@@ -112,13 +112,24 @@ Ignored, and why:
 | `frigate/config/backup_config.yaml` | Frigate rewrites it on every UI config save |
 | `frigate/config/*.db*`, `model_cache/` | Event database and cached detector models |
 | `mosquitto/data/` | Broker persistence |
-| `*.mp4` | Camera fixtures and captures |
+| Media files (`.mov`, `.mp4`, `.heic`, `.jpg`, ...) | Camera fixtures and captures. Camera-original footage carries GPS metadata with the home coordinates, so the patterns match uppercase extensions too -- phones write `.MOV` and `.HEIC` |
 
 After you change BirdNET-Go settings through its web UI, re-export the template so the repo
 keeps up:
 
 ```bash
-sed -e 's|^\(        clientsecret: \).*|\1""|' \
-    -e 's|^\(    sessionsecret: \).*|\1""|' \
-    birdnet-go/config/config.yaml > birdnet-go/config/config.yaml.example
+./scripts/export-birdnet-config.sh
 ```
+
+The script exists so the scrub list lives in one place. It blanks the generated session and
+OAuth secrets, every API key and password, the BirdWeather station id, and
+`birdnet.latitude` / `birdnet.longitude`.
+
+Those coordinates matter as much as the secrets. Setting your location is the single most
+useful BirdNET-Go tuning step -- it drives the range filter, which is a large false-positive
+reduction -- but the coordinates are your home address. The build plan already treats GPS
+metadata in source video as something to keep out of the repo; a latitude and longitude in
+a config file is the same disclosure by a different route. The live `config.yaml` is
+gitignored, so set your real location there and let the script produce the template.
+
+`${VAR}` references are left intact. They document intended wiring and hold no secret.

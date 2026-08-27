@@ -422,7 +422,7 @@ realtime:
         broker: tcp://localhost:1883
         topic: birdnet
         username: birdnet
-        password: secret
+        password: ""
         retain: false
         retrysettings:
             enabled: true
@@ -571,7 +571,7 @@ output:
     mysql:
         enabled: false
         username: birdnet
-        password: secret
+        password: ""
         database: birdnet
         host: localhost
         port: "3306"

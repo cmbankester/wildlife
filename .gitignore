@@ -1,14 +1,31 @@
 # Wildlife monitoring station — track config only, leave all data behind.
 
 # --- Media and capture fixtures -------------------------------------------
-*.mp4
-*.mkv
-*.jpg
-*.jpeg
-*.png
-*.wav
-*.mp3
-*.flac
+# Camera-original footage carries GPS metadata with the home coordinates, so
+# nothing that could be a phone or camera file belongs in this repo. Git
+# matches these case-sensitively (core.ignorecase is false on Linux) and
+# phones write .MOV/.HEIC/.JPG in uppercase -- hence the character classes.
+*.[mM][pP]4
+*.[mM][oO][vV]
+*.[mM][kK][vV]
+*.[aA][vV][iI]
+*.[mM]4[vV]
+*.[wW][eE][bB][mM]
+*.[mM][tT][sS]
+*.[jJ][pP][gG]
+*.[jJ][pP][eE][gG]
+*.[pP][nN][gG]
+*.[hH][eE][iI][cC]
+*.[hH][eE][iI][fF]
+*.[dD][nN][gG]
+*.[aA][aA][eE]
+*.[wW][aA][vV]
+*.[mM][pP]3
+*.[mM]4[aA]
+*.[aA][aA][cC]
+*.[fF][lL][aA][cC]
+*.[oO][gG][gG]
+*.[oO][pP][uU][sS]
 
 # --- Databases ------------------------------------------------------------
 *.db
