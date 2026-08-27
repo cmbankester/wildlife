@@ -64,11 +64,16 @@ cameras:
       # the Phase 1 acceptance tests read recordings. Re-enable when the real
       # camera lands in Phase 2.
       enabled: false
-      # Event-only. No rolling 24/7 buffer. Retention is 0 across the board
-      # while the existing bench recordings expire; restore alerts and
-      # detections to 30 days with the camera.
-      retain:
+      # Frigate 0.17 renamed record.retain to record.continuous, and
+      # continuous.days already defaults to 0 -- so the build plan's
+      # "retain.days: 0" was both an invalid key here and a no-op. The 126 GB
+      # came from detections.retain instead. Spelled out for the record:
+      continuous:
         days: 0
+      motion:
+        days: 0
+      # Retention is 0 while the existing bench recordings expire. Restore
+      # alerts and detections to 30 days with the camera in Phase 2.
       alerts:
         retain: {days: 0}
       detections:
