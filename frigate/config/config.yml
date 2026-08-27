@@ -58,11 +58,21 @@ cameras:
       retain:
         default: 60
     record:
-      enabled: true
+      # Bench posture: the detect input loops feeder-fixture.mp4, so every
+      # recorded segment is the same footage rewritten. Detection,
+      # classification, snapshots, and MQTT events are unaffected -- none of
+      # the Phase 1 acceptance tests read recordings. Re-enable when the real
+      # camera lands in Phase 2.
+      enabled: false
+      # Event-only. No rolling 24/7 buffer. Retention is 0 across the board
+      # while the existing bench recordings expire; restore alerts and
+      # detections to 30 days with the camera.
+      retain:
+        days: 0
       alerts:
-        retain: {days: 30}
+        retain: {days: 0}
       detections:
-        retain: {days: 30}
+        retain: {days: 0}
     motion:
       mask: 
         0.001,0.498,0.094,0.353,0.224,0.341,0.349,0.185,0.737,0.199,0.76,0.394,0.757,0.521,0.746,0.68,0.688,0.999,0.994,0.992,0.996,0.009,0.002,0.006
