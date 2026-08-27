@@ -412,9 +412,18 @@ realtime:
             monitoringinterval: 30
         ffmpegParameters: []
     mqtt:
-        enabled: false
+        # Locked decision #7: MQTT is the integration seam. Both Frigate and
+        # BirdNET-Go publish here so Phase 7 post-processing subscribes to one
+        # bus instead of polling two APIs, and so cross-modal correlation -- an
+        # audio and a visual detection within the same few seconds -- is
+        # possible at all.
+        #
+        # broker was tcp://localhost:1883, which from inside this container
+        # means this container. The service name is what resolves on the compose
+        # network.
+        enabled: true
         debug: false
-        broker: tcp://localhost:1883
+        broker: tcp://mosquitto:1883
         topic: birdnet
         username: birdnet
         password: ""
