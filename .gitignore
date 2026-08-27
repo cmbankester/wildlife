@@ -46,7 +46,18 @@ frigate/config/.exports
 frigate/config/.timeline
 frigate/config/.vacuum
 frigate/config/.search_stats.json
-frigate/config/model_cache/
+# Cached detector models are re-downloadable, but birdmap.txt is not just
+# cache once you edit it. The build plan's regional label pruning renames
+# entries for species that don't occur locally, and that edit is hand-made,
+# officially unsupported, and easy to lose. Tracking it makes git the backup
+# the plan asks for, and makes the "rename only, never add or remove lines"
+# rule checkable -- a diff that changes the line count is a bug.
+# Note: a file cannot be re-included once a parent directory is excluded, so
+# these exclude directory *contents* rather than the directories themselves.
+frigate/config/model_cache/*
+!frigate/config/model_cache/bird/
+frigate/config/model_cache/bird/*
+!frigate/config/model_cache/bird/birdmap.txt
 # Frigate rewrites this whenever you save the config through the UI.
 frigate/config/backup_config.yaml
 # Holds HomeKit pairing keys once a device pairs.

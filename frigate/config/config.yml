@@ -79,6 +79,21 @@ cameras:
       detections:
         retain: {days: 0}
     motion:
+      # What survives the move to the real camera, and what does not:
+      #   threshold    - luminance delta, 1-255. Geometry independent. Transfers.
+      #   contour_area - measured against a frame Frigate downscales to
+      #                  motion.frame_height (100px), so it does not depend on
+      #                  detect resolution. It does depend on framing: a bird
+      #                  fills more of the production frame than of this
+      #                  fixture, which is ~2.7x wider. Re-check rather than
+      #                  re-derive.
+      #   mask         - fractional coordinates tied to this exact scene.
+      #                  Discard it and redraw against real camera input using
+      #                  Settings -> Motion Tuner.
+      # Target from the build plan: detect/sec under ~20. Wind-moved vegetation
+      # drove it to ~104 and detect CPU to 154% on the bench.
+      threshold: 30
+      contour_area: 15
       mask: 
         0.001,0.498,0.094,0.353,0.224,0.341,0.349,0.185,0.737,0.199,0.76,0.394,0.757,0.521,0.746,0.68,0.688,0.999,0.994,0.992,0.996,0.009,0.002,0.006
 version: 0.17-0
