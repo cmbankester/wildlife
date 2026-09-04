@@ -49,8 +49,8 @@ cameras:
             roles: [detect]
     detect:
       enabled: true
-      width: 1600
-      height: 1200
+      width: 1664
+      height: 1248
       fps: 10
     objects:
       track:

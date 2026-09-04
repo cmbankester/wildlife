@@ -1,7 +1,7 @@
 # Backyard Wildlife Monitoring Station — Build Plan
 
-**Status:** ✅ Phase 1 running on existing workstation — Pass 14
-**Last updated:** 2026-08-27
+**Status:** ✅ Phase 2 — live camera node on the bench — Pass 15
+**Last updated:** 2026-09-04
 
 A local-inference camera + acoustic station for bird ID (image + sound), with a
 parallel ultrasonic channel for bats and orthoptera. No third-party inference.
@@ -26,6 +26,7 @@ parallel ultrasonic channel for bats and orthoptera. No third-party inference.
 | 12 | 2026-08-26 | **Compute purchase cancelled** — stack stays on the existing always-on workstation, which already delivers the validated 5.45ms. Recorded **Intel-only** as a hard constraint for any future buy (AMD loses the OpenVINO GPU path and degrades enrichments). Noted NPU is *slower* than iGPU for detection. Added **Phase 8 — Runbook** as a deliverable, elevated because compute lives on a work machine. |
 | 13 | 2026-08-26 | Repo created: github.com/cmbankester/wildlife. Config now under version control — the main work-machine risk is mitigated. Added secrets and media gitignore guidance (note: source video carries home GPS coordinates). |
 | 14 | 2026-08-27 | **Storage decision corrected — it was wrong twice over.** `record.retain` does not exist in Frigate 0.17 (renamed to `record.continuous`); Frigate rejected it and ran in **safe mode**, which skips all cleanup. And `continuous.days` already defaults to 0, so the setting was a no-op even spelled correctly. The real cause of 126 GB in 40 h was `detections.retain: 30d` covering the 55% of timeline a looping fixture marks as detections. **Recording is now off on the bench** — recording a loop of a file you already have stores nothing. Restore `alerts`/`detections` to 30 d with the real camera. Also: repo leak paths closed (`.MOV` was unignored, and the config re-export would have copied `birdnet.latitude`/`longitude` into the tracked template); `birdmap.txt` now tracked so pruning is diffable; **819 kernel GP faults** in `pipe2()` on CPU 1 wedged docker exec, health checks, and git until a reboot onto 6.8.0-138. |
+| 15 | 2026-09-04 | **Camera node live; the Pi 4 encoder ceiling is now measured.** Detect input moved to `rtsp://wildlife-pi:8554/feeder`. ⚠️ **The hardware H.264 encoder has two limits and only advertises one.** `v4l2-ctl` reports `Stepwise 32x32 - 1920x1920`, but the firmware also enforces **8192 macroblocks** (H.264 L4.1), stated nowhere and surfacing only as `encoder_create(): unable to activate output stream`. 1920x1440 (10800 MB) **fails**; 1664x1248 (8112 MB) is the ceiling. **2028x1520 is 12065 MB and cannot be hardware-encoded on a Pi 4 at all** — so locked decisions #4 (Pi 4 *for* its hardware encoder) and #6 (high-res detect, the snapshot is the deliverable) are in direct conflict, now with numbers: 2.08 MP available against 3.08 MP designed for, 68%. Sensor mode is correct and unaffected (`2028:1520:10:P`); the loss is one downscale step before encode. MJPEG is the open route that keeps both decisions. Also: **the bench motion mask was suppressing detection entirely** — 44% of a differently-shaped frame, `detection_fps` 0.0 with it, 8.2 without; removed, redraw against the real scene. **Open question #2 closed** — VA-API decodes real camera input clean (7.72ms, 10.0 process_fps, zero skipped); pass 11's failure was the corrupt out-of-band publisher, as suspected. Recording restored with `alerts`/`detections` at 30 d. |
 
 ---
 
