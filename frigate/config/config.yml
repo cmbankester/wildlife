@@ -36,25 +36,21 @@ cameras:
       # while the config looked clean. Verify with:
       #   docker exec frigate ps aux | grep ffmpeg
       #
-      # VA-API was recorded as failing in pass 11, but that was against a corrupt
-      # RTSP stream from the out-of-band publisher; hardware decoders reject
-      # invalid streams that software decode conceals. With Frigate looping the
-      # fixture directly it decodes clean: 6.54ms inference, 10.0 process_fps,
-      # ~15% iGPU. To force software decode for a comparison, use `hwaccel_args: []`
-      # -- an empty list, never a comment.
+      # VA-API was recorded as failing in pass 11 against a corrupt RTSP stream from
+      # the out-of-band publisher; hardware decoders reject invalid streams that
+      # software decode conceals. Now settled against the real camera node:
+      # 1600x1200 h264 over RTSP decodes clean at 7.18ms inference, 10.0
+      # process_fps, zero skipped frames. Closes open question #2. To force
+      # software decode for comparison use `hwaccel_args: []` -- an empty list,
+      # never a comment.
       hwaccel_args: preset-vaapi
       inputs:
-        - path: /media/frigate/feeder-fixture.mp4
-          input_args: -re -stream_loop -1
-          roles: [detect]
-    #  inputs:
-    #    #- path: rtsp://<node_ip>:8554/cam
-    #    - path: rtsp://mediamtx:8554/feeder
-    #      roles: [detect]
+          - path: rtsp://wildlife-pi.banklington:8554/feeder
+            roles: [detect]
     detect:
       enabled: true
-      width: 2028
-      height: 1520
+      width: 1600
+      height: 1200
       fps: 10
     objects:
       track:
@@ -69,42 +65,40 @@ cameras:
       retain:
         default: 60
     record:
-      # Bench posture: the detect input loops feeder-fixture.mp4, so every
-      # recorded segment is the same footage rewritten. Detection,
-      # classification, snapshots, and MQTT events are unaffected -- none of
-      # the Phase 1 acceptance tests read recordings. Re-enable when the real
-      # camera lands in Phase 2.
-      enabled: false
+      # Live camera. Recording was off through the bench phase because the input
+      # was a looped file -- every segment was the same footage rewritten. Real
+      # camera input is not reproducible, so it is worth keeping.
+      enabled: true
       # Frigate 0.17 renamed record.retain to record.continuous, and
-      # continuous.days already defaults to 0 -- so the build plan's
-      # "retain.days: 0" was both an invalid key here and a no-op. The 126 GB
-      # came from detections.retain instead. Spelled out for the record:
+      # continuous.days already defaults to 0. Keeping both at 0 is the
+      # event-only posture the build plan wants: no rolling 24/7 buffer.
       continuous:
         days: 0
       motion:
         days: 0
-      # Retention is 0 while the existing bench recordings expire. Restore
-      # alerts and detections to 30 days with the camera in Phase 2.
+      # These are the real retention lever, not continuous. They were 0 while
+      # the 126 GB of bench recordings expired; 30 days is the plan's figure.
+      # Watch the disk over the first few days -- /mnt/storage is on the OS
+      # drive, and this is the first time these windows have seen a live feed.
       alerts:
-        retain: {days: 0}
+        retain: {days: 30}
       detections:
-        retain: {days: 0}
+        retain: {days: 30}
     motion:
-      # What survives the move to the real camera, and what does not:
-      #   threshold    - luminance delta, 1-255. Geometry independent. Transfers.
+      #   threshold    - luminance delta, 1-255. Geometry independent, so it
+      #                  carried over from the bench unchanged.
       #   contour_area - measured against a frame Frigate downscales to
-      #                  motion.frame_height (100px), so it does not depend on
-      #                  detect resolution. It does depend on framing: a bird
-      #                  fills more of the production frame than of this
-      #                  fixture, which is ~2.7x wider. Re-check rather than
-      #                  re-derive.
-      #   mask         - fractional coordinates tied to this exact scene.
-      #                  Discard it and redraw against real camera input using
-      #                  Settings -> Motion Tuner.
+      #                  motion.frame_height (100px), so it is independent of
+      #                  detect resolution but not of framing. Re-check against
+      #                  the real scene rather than assuming it transferred.
+      #   mask         - REMOVED. The bench polygon masked 44% of a frame with a
+      #                  different aspect ratio and a different scene, so on the
+      #                  real camera it covered arbitrary geography. Redraw in
+      #                  Settings -> Motion Tuner once you can see what actually
+      #                  moves, and mask the background vegetation, never the
+      #                  zone where birds land.
       # Target from the build plan: detect/sec under ~20. Wind-moved vegetation
-      # drove it to ~104 and detect CPU to 154% on the bench.
+      # drove it to ~104 on the bench fixture.
       threshold: 30
       contour_area: 15
-      mask: 
-        0.001,0.498,0.094,0.353,0.224,0.341,0.349,0.185,0.737,0.199,0.76,0.394,0.757,0.521,0.746,0.68,0.688,0.999,0.994,0.992,0.996,0.009,0.002,0.006
 version: 0.17-0
