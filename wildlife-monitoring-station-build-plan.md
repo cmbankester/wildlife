@@ -1,6 +1,6 @@
 # Backyard Wildlife Monitoring Station — Build Plan
 
-**Status:** ✅ Phase 2 — live camera node on the bench — Pass 17
+**Status:** ✅ Phase 2 — live camera node on the bench — Pass 18
 **Last updated:** 2026-09-10
 
 A local-inference camera + acoustic station for bird ID (image + sound), with a
@@ -29,6 +29,7 @@ parallel ultrasonic channel for bats and orthoptera. No third-party inference.
 | 15 | 2026-09-04 | **Camera node live; the Pi 4 encoder ceiling is now measured.** Detect input moved to `rtsp://wildlife-pi:8554/feeder`. ⚠️ **The hardware H.264 encoder has two limits and only advertises one.** `v4l2-ctl` reports `Stepwise 32x32 - 1920x1920`, but the firmware also enforces **8192 macroblocks** (H.264 L4.1), stated nowhere and surfacing only as `encoder_create(): unable to activate output stream`. 1920x1440 (10800 MB) **fails**; 1664x1248 (8112 MB) is the ceiling. **2028x1520 is 12065 MB and cannot be hardware-encoded on a Pi 4 at all** — so locked decisions #4 (Pi 4 *for* its hardware encoder) and #6 (high-res detect, the snapshot is the deliverable) are in direct conflict, now with numbers: 2.08 MP available against 3.08 MP designed for, 68%. Sensor mode is correct and unaffected (`2028:1520:10:P`); the loss is one downscale step before encode. MJPEG is the open route that keeps both decisions. Also: **the bench motion mask was suppressing detection entirely** — 44% of a differently-shaped frame, `detection_fps` 0.0 with it, 8.2 without; removed, redraw against the real scene. **Open question #2 closed** — VA-API decodes real camera input clean (7.72ms, 10.0 process_fps, zero skipped); pass 11's failure was the corrupt out-of-band publisher, as suspected. Recording restored with `alerts`/`detections` at 30 d. |
 | 16 | 2026-09-10 | **The encoder is the only bottleneck — the ISP goes to 16384×16384.** So skipping the encoder removes the 1920 cap entirely, which opens two routes to full-MP capture, now written up as an open decision in Phase 2. Route A: MJPEG 1920×1440, config-only, intra-only (no inter-frame generation loss), fits the measured ~100 Mbps wifi, recording still works via a secondary path — but it is **unverified** whether the 8192-macroblock cap applies to JPEG. Route B: full-res RAM ring buffer with retroactive fetch on Frigate events. ⚠️ **Disk is the wrong medium for Route B — endurance, not bandwidth:** 185 MB/s = 15.98 TB/day would kill a 128 GB SSD in 4–6 days. RAM fits: ~1000 MB = 5.4 s of 4056×3040 against ~1.3 s detection latency. Cost is a custom libcamera app (the camera is exclusive, so one process must stream *and* buffer), and it abandons 2×2 binning — worse dawn/dusk noise at peak bird activity — while the lens likely cannot resolve 1.55 µm pixels anyway. ⚠️ **Frigate silently adds the `record` role** if no input declares it (observed: config said `[detect]`, runtime said `["record","detect"]`) — in a raw pipeline that would attach recording to 46 MB/s and write 166 GB/hour, so raw configs must declare roles explicitly. Measured on the node: 2 GB RAM (not 4/8), USB3 SSD 269 MB/s write, wifi ~100 Mbps sustained while streaming, hardware JPEG encoder present at `/dev/video31`. **Open question #2 (VA-API) closed in pass 15**; the workstation `mediamtx` container is now dead weight since the Pi publishes its own. |
 | 17 | 2026-09-10 | **Route A is live — MJPEG 1920×1440.** The 8192-macroblock cap is H.264-only; JPEG's 8×8 MCUs are exempt, so 2.76 MP now streams where H.264 capped at 2.08. **Bandwidth 15.3 Mbps / 6.4 GB/hour measured** against H.264's 14 Mbps / 5.9 — 33% more pixels for ~8% more bandwidth, so the storage objection to MJPEG was wrong by 3–4×. VA-API hardware-decodes MJPEG on Alder Lake; `preset-vaapi` stays valid at 6.24ms inference, zero skipped frames. Wifi measured at ~100 Mbps sustained while streaming, so MJPEG fits wireless with room. ⚠️ **MJPEG recording unproven** — segments mux correctly (18.9 MB/10s in `/tmp/cache`) but none promoted to `recordings/`, because no review segment has existed to retain one. ⚠️ **The lens test was invalid**: full-res and binned crops of the same scene are indistinguishable, both focus-limited, and bytes/pixel *falls* as resolution rises (0.1805 → 0.1625 → 0.1576) — the extra pixels mostly interpolate. Camera was through a window at a distant roof, focused ~2 m, at Lux 6035. Redo at ~2.5 m, focused, near f/2. Also corrected: snapshots are **not** higher-res than the stream — the 2028×1520 files date from the fixture era, so snapshots do come from the detect stream and Route B's rationale is unaffected. ⚠️ **Nothing has validated the live path end to end** — all 500 events predate the camera going live on 09-04; zero detections since, expected with `objects.track: [bird]` on an out-of-focus indoor lawn. |
+| 18 | 2026-09-10 | **The aperture ring delivers 0.48 stops per marked stop** — measured, both steps independently, spread 0–1 pixel value on steps of 27. The whole ring is worth ~1 stop, not 2. A light-leak model does not fit, so this is iris under-travel or misaligned engraving, not stray light. **Sit at the 2.8 marking**: it costs ~1 stop from wide open rather than the 2 implied, while still closing the iris 1.4× in diameter — enough to work on the chromatic aberration visible on this lens. ⚠️ **Absolute f-number remains unknown** (ratios only): if 1.4 is honest, marked 2.8 is ≈f/1.95; if 2.8 is honest, wide open is ≈f/2.0. Measure the entrance pupil to settle it — 11.4mm is a true f/1.4 at 16mm — because it changes the sourcing decision and the dawn/dusk margin. The light budget table is annotated accordingly. **Method matters and is recorded**: three auto-exposure attempts were confounded first — focus changed mid-test, then a target 5cm away that the camera shadowed until the AEC railed (identical `ExposureTime=66654`/`AnalogueGain=7.876923` at every aperture, the ~8× analogue cap), then flicker from freshly-lit mains at ~30ms exposures. The method that works: fix shutter and gain to kill the AEC, flat evenly-lit target deliberately defocused so reframing stops mattering, shutter in multiples of 8333µs for 120Hz mains, measure the central 50%, and ⚠️ **calibrate the tone curve rather than assuming gamma** — a shutter ladder at fixed aperture gave 0/−0.415/−1/−2 stops → means 154/131/97/52, whose fitted exponent drifts 0.56→0.67→0.78. Also captured: a focus check at the current setting shows detail density up 35% (0.1576 → 0.2127 bytes/px) but **veiling glare off the house window now dominates**, and at 1920×1440 each pixel carries more information than at 4056×3040 — a lens-limited system, which argues for settling the optics before building anything to move more pixels. |
 
 ---
 
@@ -733,7 +734,74 @@ Each of these fails silently — you won't notice until you review a week of fra
       full auto, the exposure algorithm will lengthen shutter in low light and
       quietly hand you blurred birds.
 
-**Light budget** (f/2.8, ISO 100) — the real binding constraint:
+### ⚠️ Measured: the aperture ring delivers half of what it's marked
+
+Bench measurement, 2026-09-10, on the unit in hand. **Each marked stop delivers
+0.48 stops.** The whole ring is worth about **one stop, not two.**
+
+| Marking | Mean pixel | Stops vs 1.4 | Marked | Delivered |
+|---|---|---|---|---|
+| f/1.4 | 154.5 | 0.00 | — | reference |
+| f/2 | 127.0 | −0.48 | −1.0 | **48%** |
+| f/2.8 | 99.3 | −0.96 | −2.0 | **48%** |
+
+Both steps land on 0.48 independently, against a frame-to-frame spread of 0–1
+pixel value on steps of 27 — so this is a systematic, not measurement slop. A
+light-leak model (constant stray light compressing the ratios) was fitted and does
+not match. The likeliest cause is iris under-travel or engraving misaligned with
+actual iris position.
+
+#### How it was measured, and three ways it went wrong first
+
+Auto-exposure metadata cannot answer this. Three attempts were confounded before
+the method worked, each differently — worth recording so they are not repeated:
+
+1. **Focus changed between captures.** Metering is centre-weighted by default and
+   defocus redistributes brightness across the frame, so exposure moved for reasons
+   unrelated to the iris.
+2. **Target too close.** A white box 5 cm from the lens is shadowed by the camera
+   itself. The AEC railed — identical `ExposureTime=66654`, `AnalogueGain=7.876923`
+   at every aperture, which is the ~8× analogue cap and a frame-duration limit, not
+   evidence the iris does nothing. Auto-exposure agreeing to six significant figures
+   across three light levels is always a rail.
+3. **Still using AEC.** Even unrailed, exposure clamped at 29983 µs with gain taking
+   over, and freshly switched-on mains lighting flickers at 120 Hz against ~30 ms
+   exposures.
+
+What works:
+
+- [ ] **Kill the AEC.** `--shutter` and `--gain` fixed; measure how bright the image
+      actually is. Auto-exposure readings are a proxy for the thing you want.
+- [ ] **Flat, evenly lit target, deliberately defocused**, filling the frame. Blur
+      preserves frame mean while destroying detail, so reframing between captures —
+      unavoidable when the ring needs two hands — stops mattering.
+- [ ] **Shutter in multiples of 8333 µs** (120 Hz mains) so light flicker averages out.
+- [ ] **Measure the central 50%**, away from vignetting.
+- [ ] ⚠️ **Calibrate the tone curve; do not assume gamma.** A shutter ladder at fixed
+      aperture gives known light ratios: 33332/24999/16666/8333 µs → 0/−0.415/−1/−2
+      stops → measured means 154/131/97/52. Fitting an exponent between adjacent pairs
+      gives 0.56, 0.67, 0.78 — drifting, so the ISP applies a tone curve on top of
+      gamma. Reading stops straight off pixel values understates differences at the
+      bright end. Interpolate the measured curve instead.
+
+#### What this changes
+
+- **Sit at the 2.8 marking.** Getting there from wide open costs ~1 stop, not the 2
+  the engraving implies, while still closing the iris by 1.4× in diameter — enough to
+  work on the chromatic aberration and corner softness seen on the same lens. A better
+  trade than the markings suggest.
+- ⚠️ **The light budget table below assumes standard stops and this lens has none.**
+  The dawn/dusk row especially, where ISO is already 1600–3200.
+- [ ] **Absolute f-number is still unknown** — the above is all ratios. If f/1.4 is
+      honest, marked 2.8 is really ≈f/1.95; if 2.8 is honest, wide open is ≈f/2.0. Both
+      fit. To settle it, measure the entrance pupil physically: at 16 mm, a true f/1.4
+      is 11.4 mm across and f/2 is 8 mm. Photograph the lens front square-on with a
+      ruler at each setting. **This matters for sourcing** — a lens that is really f/2
+      wide open is a different purchase than one that is f/1.4, and it is the fast-lens
+      margin at dawn/dusk that is at stake.
+
+**Light budget** (nominal f/2.8, ISO 100) — the real binding constraint. ⚠️ Assumes
+standard stops; the measured lens does not have them, see above:
 
 | Conditions | Shutter achievable | Notes |
 |---|---|---|
@@ -742,7 +810,9 @@ Each of these fails silently — you won't notice until you review a week of fra
 | Canopy shade | — | ISO 400–800 for 1/500s |
 | **Dawn / dusk** | — | **ISO 1600–3200. Peak bird activity.** |
 
-Dawn/dusk is where this build strains. A fast lens buys ~1.5 usable stops back.
+Dawn/dusk is where this build strains. A fast lens buys ~1.5 usable stops back —
+⚠️ but the measured unit's entire ring is worth ~1 stop, and its true wide-open
+aperture is unconfirmed. Do not count on that margin until the pupil is measured.
 
 ### Power and network topology — DECIDED: single PoE+ run
 Everything runs off one Ethernet cable from the house. No separate power run.
@@ -1207,7 +1277,12 @@ Roughly in the order they'll block progress.
 5. **Semantic search?** No longer a purchase blocker — evaluate on the existing
    workstation whenever curiosity strikes.
 6. **Lens sourcing** — confirm a 16mm f/1.4 C-mount with acceptable sharpness at
-   f/2 before committing. Cheap CCTV glass varies wildly unit to unit.
+   f/2 before committing. Cheap CCTV glass varies wildly unit to unit. ⚠️ **The unit
+   in hand measures 0.48 stops per marked stop** — its whole ring is worth ~1 stop,
+   not 2 — and shows visible lateral chromatic aberration wide open. Absolute
+   aperture is unconfirmed; measure the entrance pupil (11.4mm = true f/1.4 at
+   16mm) before treating "f/1.4" as a spec. See Phase 2, "the aperture ring
+   delivers half of what it's marked".
 7. **Solar geometry and sizing.** Genuinely last — downstream of measured load,
    and the phase swap turned this from a guess into a measurement.
 
