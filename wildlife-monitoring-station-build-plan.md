@@ -1,6 +1,6 @@
 # Backyard Wildlife Monitoring Station — Build Plan
 
-**Status:** 🔨 Phase 3 — enclosure build started — Pass 19
+**Status:** 🔨 Phase 3 — enclosure build started — Pass 20
 **Last updated:** 2026-09-10
 
 A local-inference camera + acoustic station for bird ID (image + sound), with a
@@ -31,6 +31,7 @@ parallel ultrasonic channel for bats and orthoptera. No third-party inference.
 | 17 | 2026-09-10 | **Route A is live — MJPEG 1920×1440.** The 8192-macroblock cap is H.264-only; JPEG's 8×8 MCUs are exempt, so 2.76 MP now streams where H.264 capped at 2.08. **Bandwidth 15.3 Mbps / 6.4 GB/hour measured** against H.264's 14 Mbps / 5.9 — 33% more pixels for ~8% more bandwidth, so the storage objection to MJPEG was wrong by 3–4×. VA-API hardware-decodes MJPEG on Alder Lake; `preset-vaapi` stays valid at 6.24ms inference, zero skipped frames. Wifi measured at ~100 Mbps sustained while streaming, so MJPEG fits wireless with room. ⚠️ **MJPEG recording unproven** — segments mux correctly (18.9 MB/10s in `/tmp/cache`) but none promoted to `recordings/`, because no review segment has existed to retain one. ⚠️ **The lens test was invalid**: full-res and binned crops of the same scene are indistinguishable, both focus-limited, and bytes/pixel *falls* as resolution rises (0.1805 → 0.1625 → 0.1576) — the extra pixels mostly interpolate. Camera was through a window at a distant roof, focused ~2 m, at Lux 6035. Redo at ~2.5 m, focused, near f/2. Also corrected: snapshots are **not** higher-res than the stream — the 2028×1520 files date from the fixture era, so snapshots do come from the detect stream and Route B's rationale is unaffected. ⚠️ **Nothing has validated the live path end to end** — all 500 events predate the camera going live on 09-04; zero detections since, expected with `objects.track: [bird]` on an out-of-focus indoor lawn. |
 | 18 | 2026-09-10 | **The aperture ring delivers 0.48 stops per marked stop** — measured, both steps independently, spread 0–1 pixel value on steps of 27. The whole ring is worth ~1 stop, not 2. A light-leak model does not fit, so this is iris under-travel or misaligned engraving, not stray light. **Sit at the 2.8 marking**: it costs ~1 stop from wide open rather than the 2 implied, while still closing the iris 1.4× in diameter — enough to work on the chromatic aberration visible on this lens. ⚠️ **Absolute f-number remains unknown** (ratios only): if 1.4 is honest, marked 2.8 is ≈f/1.95; if 2.8 is honest, wide open is ≈f/2.0. Measure the entrance pupil to settle it — 11.4mm is a true f/1.4 at 16mm — because it changes the sourcing decision and the dawn/dusk margin. The light budget table is annotated accordingly. **Method matters and is recorded**: three auto-exposure attempts were confounded first — focus changed mid-test, then a target 5cm away that the camera shadowed until the AEC railed (identical `ExposureTime=66654`/`AnalogueGain=7.876923` at every aperture, the ~8× analogue cap), then flicker from freshly-lit mains at ~30ms exposures. The method that works: fix shutter and gain to kill the AEC, flat evenly-lit target deliberately defocused so reframing stops mattering, shutter in multiples of 8333µs for 120Hz mains, measure the central 50%, and ⚠️ **calibrate the tone curve rather than assuming gamma** — a shutter ladder at fixed aperture gave 0/−0.415/−1/−2 stops → means 154/131/97/52, whose fitted exponent drifts 0.56→0.67→0.78. Also captured: a focus check at the current setting shows detail density up 35% (0.1576 → 0.2127 bytes/px) but **veiling glare off the house window now dominates**, and at 1920×1440 each pixel carries more information than at 4056×3040 — a lens-limited system, which argues for settling the optics before building anything to move more pixels. |
 | 19 | 2026-09-10 | **Phase 3 started. Camera window decided: 100×100×1mm double-side-polished fused quartz in a side wall.** Better than the "optical acrylic or glass" originally specified. Costs **0.1 stops** — the ">83% over 190–2500nm" spec is a broadband minimum dragged down at the UV/IR ends; in-band it is ~93%, just Fresnel loss — and shifts focus 0.33mm, inside DoF at f/2. ⚠️ **The real risk is thermal expansion, not optics:** quartz is 0.55×10⁻⁶/K against ~80 for ABS/PC, ~150× mismatch, giving ~0.6mm differential across a 100mm pane over a 75°C swing. **Silicone, never epoxy; no screw bearing on the pane.** Uncoated, so 8% reflects back into the box and **flocking is no longer optional**. **The transparent front lid is rejected** — tinted and visibly warped, edges swim when moved across a scene, which is the right quick test for waviness and disqualifying on its own. But it remains a light path: a clear front floods the interior and returns glare through the lens, so ⚠️ **cover it from the outside** (white), not blacked inside, because a clear lid admits solar load and absorbing it internally traps heat against this plan's own 60–70°C figure. **Window moves to a side wall**, which puts the optical axis along the box's longest dimension and dissolves the standoff problem. **Hole size is calculable**: at 16mm with the IMX477's 7.857mm diagonal the half-field is 13.8°, so `hole ≥ front element + 0.49 × d` where d includes wall thickness — **31.2mm** with the measured geometry — front element ~27mm, lens lip 3.5mm deep at 38mm OD, wall 3.0mm confirmed, quartz 1mm, 1mm air gap — so a **1⅜" (34.9mm) saw**. ⚠️ The lip does not vignette (built-in hood) but it is the frontmost surface, so it puts a ~4mm floor under "lens as close to the window as possible" and that distance propagates into the hole. Lip measures 38mm OD / 36mm ID — a 1mm-thick rim, so **not** usable as a bearing surface or baffle: a 1⅜" hole leaves only 1.54mm of land and the lip bore is wider than the hole. Spill light is controlled by flocking on the barrel and interior instead, which is also the only option that does not press on 1mm quartz. Vignetting check closed: 36mm bore against 28.7mm required, 3.7mm clearance per side. Added a **build order** (measure the assembly first, dry fit with zero drilling, drill last — the camera is constrained and the hole is not, so the camera decides) and ⚠️ **camera mounts on an L-bracket shelf off the vertical backboard**, sitting on its base with the tripod screw running up. Bolting it flat to the vertical board instead would put the screw on a horizontal axis with the lens cantilevered sideways, so **gravity applies a constant torque about the screw** — a static load resisted only by friction, failing with the lens swung to vertical. The shelf converts that torque into a normal force. ⚠️ The **camera** sits on the shelf, not the lens: the barrel underside is 12mm above the mount plane, so resting the barrel would put the axis at 19mm rather than 31mm and misplace the hole by 12mm. A shelf also keeps `d`, and therefore the hole, small. **Assembly measured with the adapter fitted: 63.5mm from the tripod-screw centre to the lip tip, optical axis 31.0mm above the mount plane** — which fully specifies the bracket (flat surface 31mm below the axis, screw 64.5mm back from the pane). Focus travel is only ~0.1mm across 2.0–2.5m so it does not eat the 1mm air gap. ⚠️ **The tripod thread is a single fastener on a vertical axis and yaws on friction alone: 1.68° consumes the entire 1.86mm lateral margin and vignettes**, and perpendicularity to the pane goes well before that — so it needs locating pins, and a padded saddle under the 38mm barrel to take 63.5mm of lens overhang off one screw. Ribbon length confirmed **not** a constraint; the chosen wall is flat with just over 100mm of clear area, so the 100mm pane fits with only a few mm for the bead. |
+| 20 | 2026-09-10 | **Enclosure measured — 225 × 325 × 115mm internal**, notably larger than the ~200×150×100 originally specified, so the window geometry resolves comfortably. Optical axis runs along the width, out a side wall whose flat area is 115 × 325. **Every placement figure is now a number:** hole centre 57.5mm from the back wall, 7.5mm bead margin per side, camera 46.0mm out along the shelf from the backboard face (board standing ~11.5mm off the back wall), screw 64.5mm from the window wall. The pane's rear edge tucks **4mm behind the backboard plane**, which the gap around the removable board accommodates — so **the pane goes in first with the board out**, giving access to both wall faces for bedding and squeeze-out. ⚠️ **The front edge is the lid's sealing surface**: verify whether the 115mm reaches the gasket or stops short, because silicone on a sealing face costs IP66 on a box meant to stay shut a year. Considered and rejected shifting the pane forward to clear the backboard — buys 4mm at the back, costs 4mm at the gasket. **Camera mounts low**, for mounting flexibility *and* because ⚠️ heat rises: Pi, SSD and buck converter above the camera means convection carries their heat away from the sensor rather than past it, which matters against a dawn/dusk noise budget already strained. Floor is **65.5mm axis height** (corner radius, assumed 8mm and to be verified, + bead margin + half pane), leaving ~210mm of backboard above for electronics. Earlier "pane margin is thin" note superseded — it assumed 105mm. **Parts in hand:** 2× AOM-5024L-HD-R (one spare), a USB audio interface (⚠️ plug-in power unverified — the plan's own warning, and an electret will not work without it), and an AudioMoth USB mic with enclosure (⚠️ a sealed stock case conflicts with the Phase 5 rule of an open air gap and no membrane above 20kHz). |
 
 ---
 
@@ -1023,7 +1024,8 @@ Useful to know before tuning anything:
 *Goal: survive a year outdoors without opening it.*
 
 ### Enclosure
-- [ ] IP66 ABS or polycarbonate box, ~200×150×100mm
+- [x] IP66 ABS or polycarbonate box. **In hand: 225 × 325 × 115mm internal**, larger
+      than the ~200×150×100 originally specified. See placement, below.
 - [ ] **Light gray or white.** Never black.
 - [ ] **Gore-style breather vent plug** (M12, ~$8). Condensation, not rain, is
       the primary failure mode. This is the actual fix.
@@ -1099,6 +1101,71 @@ Two things follow anyway:
 - [ ] ⚠️ Check the chosen face for **draft angle, moulding texture and internal ribs**.
       A 100×100mm pane needs that much genuinely flat wall to seal against. Cutting
       quartz down needs a diamond saw — it will not score and snap.
+
+#### Placement — MEASURED 2026-09-10
+Internal, the box in hand is **225mm wide × 325mm high × 115mm deep**, notably larger
+than the ~200×150×100 originally specified. The optical axis runs along the **width**,
+out of a side wall whose flat area is 115 × 325mm.
+
+**Depth layout, from the back wall:**
+
+| | |
+|---|---|
+| back wall | 0.0mm |
+| pane rear edge | 7.5mm |
+| backboard face | 11.5mm — ⚠️ the pane tucks **4.0mm behind** this |
+| optical axis / hole centre | **57.5mm** |
+| pane front edge | 107.5mm |
+| front edge of the wall | 115.0mm — 7.5mm margin |
+
+- [x] 100mm pane in 115mm of clear depth gives **7.5mm of bead margin per side**.
+- [ ] **Camera sits 46.0mm out along the shelf** from the backboard face (57.5 − 11.5,
+      the backboard standing ~11.5mm off the back wall).
+- [x] *Considered and rejected:* shifting the pane forward to clear the backboard
+      entirely. It buys 4mm at the back and costs 4mm at the front, dropping the front
+      margin to 3.5mm — see the gasket warning below. Worse trade.
+- [ ] ⚠️ **Verify the 115mm reaches the gasket or stops short of it.** The front edge is
+      the lid's **sealing surface**. Silicone squeeze-out onto it, or a pane edge
+      encroaching on it, compromises IP66 on a box meant to stay shut for a year. If
+      115mm runs all the way to the gasket, the usable depth is less and the pane shifts
+      back into the backboard gap — which is what that gap is for.
+
+**Height: mount low.** Two independent reasons:
+
+- **Mounting flexibility.** With the camera near the bottom, the box extends upward
+  from it, so siting the box outdoors is positioning from near its bottom edge — which
+  permits close-to-the-ground camera placement if a site ever calls for it.
+- ⚠️ **Thermal, and this one is not obvious.** Pi, SSD and buck converter are the heat
+  sources. Camera **below** them means convection carries their heat up and away from
+  the sensor; camera above means every watt rises past it. This plan already flags heat
+  twice — Pi throttling, and a hot IMX477 being a noisier IMX477 — and dawn/dusk is
+  where the noise budget is already strained.
+
+```
+axis height     >= 65.5 mm above the internal floor
+shelf surface   >= 34.5 mm  (axis - 31)
+```
+
+- [ ] ⚠️ **65.5mm is a floor, not a target**: moulded corner radius (assumed **8mm —
+      verify**) + 7.5mm bead margin + 50mm half-pane. Below it the pane runs into the
+      corner radius and a continuous bead becomes impossible.
+- [ ] It also keeps the camera clear of the bottom face, where the cable glands are and
+      where any water that does get in will pool.
+- [ ] Camera zone is ~116mm of the 325mm height, leaving **~210mm of backboard** above
+      for Pi, SSD and buck converter. No competition for space.
+- [ ] Laterally the screw sits 64.5mm from the window wall, leaving 160.5mm to the far
+      wall.
+
+#### Build sequence — pane first, backboard out
+The backboard is removable and has a several-mm gap around it, which is what lets the
+pane's rear edge sit 4mm behind the board's face plane.
+
+1. [ ] **Pane in first, with the backboard removed.** Full access to both faces of the
+       wall for masking, bedding and cleaning up squeeze-out. Bedding a 1mm pane past an
+       installed backboard with 4mm of overlap would be miserable.
+2. [ ] Backboard back in.
+3. [ ] Shelf onto the backboard.
+4. [ ] Camera onto the shelf, 46.0mm out.
 
 #### ⚠️ Mount it compliantly — the CTE mismatch is the real risk
 Fused quartz is **0.55 × 10⁻⁶/K**. ABS/polycarbonate is around **80 × 10⁻⁶/K**, about
@@ -1346,20 +1413,19 @@ outside
   camera --> L-bracket shelf --> backboard
 ```
 
-#### ⚠️ Pane margin is thin — plan the bead
-The chosen wall has **just over 100mm** of flat clear area between the backboard and
-the wall's top edge (confirmed 2026-09-10, and the wall is flat). The pane is 100mm.
-That leaves only a few mm per side for the silicone bead and no positioning slack.
+#### Pane size — keep it whole
+The measured 115mm of clear depth gives 7.5mm of bead margin per side, which is
+comfortable. An earlier note here warned the margin was thin; that was based on an
+estimate of "just over 100mm" and is superseded by the measurement above.
 
 - [ ] **Keep the pane whole** — recommended. Fused quartz is not easily replaced,
-      cutting it needs a diamond saw with water, and a botched cut costs the part. Plan
-      a narrow but *continuous* bead and mask before applying.
+      cutting it needs a diamond saw with water, and a botched cut costs the part.
 - [ ] *Alternative if a diamond saw is available:* the hole is only 34.9mm, so a
       50×50mm pane covers it with generous margin and **halves the thermal
       differential** — 0.3mm instead of 0.6mm across the bonded span. Better
-      engineering, not worth improvising for.
-- [ ] Either way silicone absorbs 0.6mm across 100mm provided the bead has some width
-      and the pane is not pinched anywhere.
+      engineering, not worth improvising for now that the margin is known to be fine.
+- [ ] Silicone absorbs 0.6mm across 100mm provided the bead has some width and the pane
+      is not pinched anywhere.
 
 #### Four things easy to miss
 - [ ] **Set final focus with the window installed**, not before. The pane moves the
@@ -1626,10 +1692,10 @@ was wrong for 0.17 and the real lever is `alerts`/`detections` retention.
 | IP66 enclosure ~200×150×100 | **In hand.** Clear lid rejected as a window | 3 | ☑ |
 | M12 breather vent plug | Condensation | 3 | ☐ |
 | Cable glands PG7/PG9 | — | 3 | ☐ |
-| PUI AOM-5024L-HD-R | Bird mic capsule | 4 | ☐ |
+| PUI AOM-5024L-HD-R ×2 | Bird mic capsule — **in hand**, one spare | 4 | ☑ |
+| USB audio interface | Bird mic input — ⚠️ **in hand, plug-in power UNVERIFIED** | 4 | ☑ |
+| AudioMoth USB Mic + enclosure | Ultrasonic — **in hand**; ⚠️ stock case likely sealed | 5 | ☑ |
 | USB3 SSD 128GB | Pi boot + root — **in hand**, 269 MB/s measured | 2 | ☑ |
-| USB sound card (CM108 class) | Bird mic input | 4 | ☐ |
-| AudioMoth USB Microphone | Ultrasonic | 5 | ☐ |
 | Active USB extender, shielded | AudioMoth → bird box | 5 | ☑ decided |
 | Solar panel | — | 6 | ☐ **sizing open** |
 | LiFePO4 + low-temp-cutoff BMS | — | 6 | ☐ |
