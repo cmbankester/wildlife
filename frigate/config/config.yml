@@ -39,18 +39,18 @@ cameras:
       # VA-API was recorded as failing in pass 11 against a corrupt RTSP stream from
       # the out-of-band publisher; hardware decoders reject invalid streams that
       # software decode conceals. Now settled against the real camera node:
-      # 1600x1200 h264 over RTSP decodes clean at 7.18ms inference, 10.0
-      # process_fps, zero skipped frames. Closes open question #2. To force
-      # software decode for comparison use `hwaccel_args: []` -- an empty list,
-      # never a comment.
+      # MJPEG 1920x1440 over RTSP decodes clean on VA-API -- Intel has hardware
+      # JPEG decode, verified with an explicit vaapi ffmpeg run. Closes open
+      # question #2. To force software decode use `hwaccel_args: []` -- an
+      # empty list, never a comment.
       hwaccel_args: preset-vaapi
       inputs:
           - path: rtsp://wildlife-pi.banklington:8554/feeder
             roles: [detect]
     detect:
       enabled: true
-      width: 1664
-      height: 1248
+      width: 1920
+      height: 1440
       fps: 10
     objects:
       track:

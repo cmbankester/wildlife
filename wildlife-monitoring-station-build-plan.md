@@ -1,6 +1,6 @@
 # Backyard Wildlife Monitoring Station — Build Plan
 
-**Status:** ✅ Phase 2 — live camera node on the bench — Pass 16
+**Status:** ✅ Phase 2 — live camera node on the bench — Pass 17
 **Last updated:** 2026-09-10
 
 A local-inference camera + acoustic station for bird ID (image + sound), with a
@@ -28,6 +28,7 @@ parallel ultrasonic channel for bats and orthoptera. No third-party inference.
 | 14 | 2026-08-27 | **Storage decision corrected — it was wrong twice over.** `record.retain` does not exist in Frigate 0.17 (renamed to `record.continuous`); Frigate rejected it and ran in **safe mode**, which skips all cleanup. And `continuous.days` already defaults to 0, so the setting was a no-op even spelled correctly. The real cause of 126 GB in 40 h was `detections.retain: 30d` covering the 55% of timeline a looping fixture marks as detections. **Recording is now off on the bench** — recording a loop of a file you already have stores nothing. Restore `alerts`/`detections` to 30 d with the real camera. Also: repo leak paths closed (`.MOV` was unignored, and the config re-export would have copied `birdnet.latitude`/`longitude` into the tracked template); `birdmap.txt` now tracked so pruning is diffable; **819 kernel GP faults** in `pipe2()` on CPU 1 wedged docker exec, health checks, and git until a reboot onto 6.8.0-138. |
 | 15 | 2026-09-04 | **Camera node live; the Pi 4 encoder ceiling is now measured.** Detect input moved to `rtsp://wildlife-pi:8554/feeder`. ⚠️ **The hardware H.264 encoder has two limits and only advertises one.** `v4l2-ctl` reports `Stepwise 32x32 - 1920x1920`, but the firmware also enforces **8192 macroblocks** (H.264 L4.1), stated nowhere and surfacing only as `encoder_create(): unable to activate output stream`. 1920x1440 (10800 MB) **fails**; 1664x1248 (8112 MB) is the ceiling. **2028x1520 is 12065 MB and cannot be hardware-encoded on a Pi 4 at all** — so locked decisions #4 (Pi 4 *for* its hardware encoder) and #6 (high-res detect, the snapshot is the deliverable) are in direct conflict, now with numbers: 2.08 MP available against 3.08 MP designed for, 68%. Sensor mode is correct and unaffected (`2028:1520:10:P`); the loss is one downscale step before encode. MJPEG is the open route that keeps both decisions. Also: **the bench motion mask was suppressing detection entirely** — 44% of a differently-shaped frame, `detection_fps` 0.0 with it, 8.2 without; removed, redraw against the real scene. **Open question #2 closed** — VA-API decodes real camera input clean (7.72ms, 10.0 process_fps, zero skipped); pass 11's failure was the corrupt out-of-band publisher, as suspected. Recording restored with `alerts`/`detections` at 30 d. |
 | 16 | 2026-09-10 | **The encoder is the only bottleneck — the ISP goes to 16384×16384.** So skipping the encoder removes the 1920 cap entirely, which opens two routes to full-MP capture, now written up as an open decision in Phase 2. Route A: MJPEG 1920×1440, config-only, intra-only (no inter-frame generation loss), fits the measured ~100 Mbps wifi, recording still works via a secondary path — but it is **unverified** whether the 8192-macroblock cap applies to JPEG. Route B: full-res RAM ring buffer with retroactive fetch on Frigate events. ⚠️ **Disk is the wrong medium for Route B — endurance, not bandwidth:** 185 MB/s = 15.98 TB/day would kill a 128 GB SSD in 4–6 days. RAM fits: ~1000 MB = 5.4 s of 4056×3040 against ~1.3 s detection latency. Cost is a custom libcamera app (the camera is exclusive, so one process must stream *and* buffer), and it abandons 2×2 binning — worse dawn/dusk noise at peak bird activity — while the lens likely cannot resolve 1.55 µm pixels anyway. ⚠️ **Frigate silently adds the `record` role** if no input declares it (observed: config said `[detect]`, runtime said `["record","detect"]`) — in a raw pipeline that would attach recording to 46 MB/s and write 166 GB/hour, so raw configs must declare roles explicitly. Measured on the node: 2 GB RAM (not 4/8), USB3 SSD 269 MB/s write, wifi ~100 Mbps sustained while streaming, hardware JPEG encoder present at `/dev/video31`. **Open question #2 (VA-API) closed in pass 15**; the workstation `mediamtx` container is now dead weight since the Pi publishes its own. |
+| 17 | 2026-09-10 | **Route A is live — MJPEG 1920×1440.** The 8192-macroblock cap is H.264-only; JPEG's 8×8 MCUs are exempt, so 2.76 MP now streams where H.264 capped at 2.08. **Bandwidth 15.3 Mbps / 6.4 GB/hour measured** against H.264's 14 Mbps / 5.9 — 33% more pixels for ~8% more bandwidth, so the storage objection to MJPEG was wrong by 3–4×. VA-API hardware-decodes MJPEG on Alder Lake; `preset-vaapi` stays valid at 6.24ms inference, zero skipped frames. Wifi measured at ~100 Mbps sustained while streaming, so MJPEG fits wireless with room. ⚠️ **MJPEG recording unproven** — segments mux correctly (18.9 MB/10s in `/tmp/cache`) but none promoted to `recordings/`, because no review segment has existed to retain one. ⚠️ **The lens test was invalid**: full-res and binned crops of the same scene are indistinguishable, both focus-limited, and bytes/pixel *falls* as resolution rises (0.1805 → 0.1625 → 0.1576) — the extra pixels mostly interpolate. Camera was through a window at a distant roof, focused ~2 m, at Lux 6035. Redo at ~2.5 m, focused, near f/2. Also corrected: snapshots are **not** higher-res than the stream — the 2028×1520 files date from the fixture era, so snapshots do come from the detect stream and Route B's rationale is unaffected. ⚠️ **Nothing has validated the live path end to end** — all 500 events predate the camera going live on 09-04; zero detections since, expected with `objects.track: [bird]` on an out-of-focus indoor lawn. |
 
 ---
 
@@ -825,11 +826,26 @@ encoder exists, so this costs nothing but a restart.
 - **Intra-only**: no inter-frame compression, so the snapshot JPEG is the only lossy
   step after capture. Worth more than it sounds — today every snapshot is H.264'd at
   14 Mbps, decoded, then re-JPEG'd at quality 95
-- ~40–60 Mbps, fits inside the measured ~100 Mbps wifi ceiling
+- Measured 15.3 Mbps (see below), comfortably inside the measured ~100 Mbps wifi ceiling
 - Recording still works: MediaMTX's secondary path carries an H.264 record stream
-- [ ] **UNVERIFIED:** does the 8192-macroblock cap apply to JPEG? It should not — JPEG
-      has 8×8 MCUs, no macroblocks and no inter-frame prediction. One restart to find out.
-      If it *does* apply, MJPEG tops out at 1664×1248 and Route A is worthless.
+- [x] **VERIFIED 2026-09-10: it does not.** MJPEG 1920×1440 runs. The macroblock cap is
+      an H.264 constraint only; JPEG's 8×8 MCUs are not subject to it. mediamtx logs
+      "using MJPEG encoder", the service stays active, and ffprobe reports
+      `mjpeg 1920x1440 10/1`. **Route A is live.**
+- [x] **Bandwidth measured — the estimate above was wrong by 3–4×.** Actual is
+      **15.3 Mbps / 6.4 GB/hour** at quality 85 (~182 KB/frame), against H.264's
+      14 Mbps / 5.9 GB/hour. So 33% more pixels for ~8% more bandwidth, which removes
+      the storage objection to MJPEG almost entirely. ⚠️ Measured against a soft,
+      out-of-focus indoor scene that compresses unusually well — re-measure against real
+      foliage, which could run 2–3× higher.
+- [x] VA-API hardware-decodes MJPEG on Alder Lake, verified with an explicit ffmpeg run.
+      `preset-vaapi` stays valid: 6.24ms inference, camera_fps 10.1, zero skipped frames.
+- [ ] ⚠️ **MJPEG recording is still unproven.** Segments mux correctly — an 18.9 MB
+      10-second segment appeared in Frigate's `/tmp/cache`, matching the measured bitrate
+      — but nothing has been promoted to `recordings/` because no review segment has
+      existed to retain. Confirm on the first real detection: if events show
+      `has_clip=false` and `recordings/` stays empty, move the record role to an H.264
+      secondary path.
 
 #### Route B — full-res ring buffer, retroactive fetch
 
@@ -869,11 +885,32 @@ serves them on request when Frigate reports an event.
 
 #### What decides it
 
-- [ ] Free the camera and capture a full-res still **through the actual lens at the
-      intended aperture**, plus a raw DNG. Judge real resolved detail, not pixel count.
-- [ ] Test MJPEG 1920×1440. If it works, 2.76 MP is available today for no effort.
-- [ ] Then decide whether 12.33 MP of softer, noisier pixels beats 2.76 MP of clean
-      ones. Decide with an image in hand, not in the abstract.
+Route A is live, so Route B is now optional rather than necessary: the question is
+whether 12.33 MP of softer, noisier pixels beats the 2.76 MP of clean ones you already
+have.
+
+- [ ] ⚠️ **The lens test ran on 2026-09-10 and was invalid.** Captured 4056×3040,
+      2028×1520 and 1664×1248 of the same scene. Matched crops of the same scene region
+      are indistinguishable — both **focus-limited, not resolution-limited**. Objective
+      corroboration: at identical q95, bytes/pixel *falls* as resolution rises
+      (0.1805 → 0.1625 → 0.1576), meaning the extra pixels mostly interpolate. The
+      camera was aimed through a window at a roof tens of metres away while focused
+      around 2 m, at `Lux=6035` — bright, gain 1.0, best case, and says nothing about
+      dawn/dusk.
+- [ ] **Redo it properly:** fine detail at ~2.5 m, focus set carefully at full
+      resolution, aperture near f/2. Judge resolved detail, not pixel count.
+- [ ] Note from the invalid run: pronounced magenta fringing on a dark vertical edge.
+      Real chromatic aberration and a hint the lens is near wide open — a genuine data
+      point about the glass, feeding open question "lens sourcing".
+- [x] ~~Snapshots appear at 2028×1520, above the stream — does Frigate source them
+      outside the detect stream?~~ **No.** Those files date from 2026-08-25 and
+      2026-09-01, when the detect input was the 2028×1520 `feeder-fixture.mp4`.
+      Snapshots do come from the detect stream. Route B's rationale is unaffected.
+- [ ] ⚠️ **Nothing has validated the live path end to end.** Every event in the database
+      predates the live camera (181 on 08-31, 319 on 09-01, all from the fixture). Zero
+      detections since the node went live on 09-04 — expected, since `objects.track` is
+      `[bird]` and the camera is indoors on an out-of-focus lawn, but it means no live
+      event, snapshot, clip, or MQTT message has been observed yet.
 
 ### Frigate config — optimized for observation quality, not security
 The usual Frigate advice is to run detection on a low-res substream to save CPU.
