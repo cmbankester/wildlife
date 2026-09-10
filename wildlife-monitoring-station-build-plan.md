@@ -1,6 +1,6 @@
 # Backyard Wildlife Monitoring Station — Build Plan
 
-**Status:** ✅ Phase 2 — live camera node on the bench — Pass 18
+**Status:** 🔨 Phase 3 — enclosure build started — Pass 19
 **Last updated:** 2026-09-10
 
 A local-inference camera + acoustic station for bird ID (image + sound), with a
@@ -30,6 +30,7 @@ parallel ultrasonic channel for bats and orthoptera. No third-party inference.
 | 16 | 2026-09-10 | **The encoder is the only bottleneck — the ISP goes to 16384×16384.** So skipping the encoder removes the 1920 cap entirely, which opens two routes to full-MP capture, now written up as an open decision in Phase 2. Route A: MJPEG 1920×1440, config-only, intra-only (no inter-frame generation loss), fits the measured ~100 Mbps wifi, recording still works via a secondary path — but it is **unverified** whether the 8192-macroblock cap applies to JPEG. Route B: full-res RAM ring buffer with retroactive fetch on Frigate events. ⚠️ **Disk is the wrong medium for Route B — endurance, not bandwidth:** 185 MB/s = 15.98 TB/day would kill a 128 GB SSD in 4–6 days. RAM fits: ~1000 MB = 5.4 s of 4056×3040 against ~1.3 s detection latency. Cost is a custom libcamera app (the camera is exclusive, so one process must stream *and* buffer), and it abandons 2×2 binning — worse dawn/dusk noise at peak bird activity — while the lens likely cannot resolve 1.55 µm pixels anyway. ⚠️ **Frigate silently adds the `record` role** if no input declares it (observed: config said `[detect]`, runtime said `["record","detect"]`) — in a raw pipeline that would attach recording to 46 MB/s and write 166 GB/hour, so raw configs must declare roles explicitly. Measured on the node: 2 GB RAM (not 4/8), USB3 SSD 269 MB/s write, wifi ~100 Mbps sustained while streaming, hardware JPEG encoder present at `/dev/video31`. **Open question #2 (VA-API) closed in pass 15**; the workstation `mediamtx` container is now dead weight since the Pi publishes its own. |
 | 17 | 2026-09-10 | **Route A is live — MJPEG 1920×1440.** The 8192-macroblock cap is H.264-only; JPEG's 8×8 MCUs are exempt, so 2.76 MP now streams where H.264 capped at 2.08. **Bandwidth 15.3 Mbps / 6.4 GB/hour measured** against H.264's 14 Mbps / 5.9 — 33% more pixels for ~8% more bandwidth, so the storage objection to MJPEG was wrong by 3–4×. VA-API hardware-decodes MJPEG on Alder Lake; `preset-vaapi` stays valid at 6.24ms inference, zero skipped frames. Wifi measured at ~100 Mbps sustained while streaming, so MJPEG fits wireless with room. ⚠️ **MJPEG recording unproven** — segments mux correctly (18.9 MB/10s in `/tmp/cache`) but none promoted to `recordings/`, because no review segment has existed to retain one. ⚠️ **The lens test was invalid**: full-res and binned crops of the same scene are indistinguishable, both focus-limited, and bytes/pixel *falls* as resolution rises (0.1805 → 0.1625 → 0.1576) — the extra pixels mostly interpolate. Camera was through a window at a distant roof, focused ~2 m, at Lux 6035. Redo at ~2.5 m, focused, near f/2. Also corrected: snapshots are **not** higher-res than the stream — the 2028×1520 files date from the fixture era, so snapshots do come from the detect stream and Route B's rationale is unaffected. ⚠️ **Nothing has validated the live path end to end** — all 500 events predate the camera going live on 09-04; zero detections since, expected with `objects.track: [bird]` on an out-of-focus indoor lawn. |
 | 18 | 2026-09-10 | **The aperture ring delivers 0.48 stops per marked stop** — measured, both steps independently, spread 0–1 pixel value on steps of 27. The whole ring is worth ~1 stop, not 2. A light-leak model does not fit, so this is iris under-travel or misaligned engraving, not stray light. **Sit at the 2.8 marking**: it costs ~1 stop from wide open rather than the 2 implied, while still closing the iris 1.4× in diameter — enough to work on the chromatic aberration visible on this lens. ⚠️ **Absolute f-number remains unknown** (ratios only): if 1.4 is honest, marked 2.8 is ≈f/1.95; if 2.8 is honest, wide open is ≈f/2.0. Measure the entrance pupil to settle it — 11.4mm is a true f/1.4 at 16mm — because it changes the sourcing decision and the dawn/dusk margin. The light budget table is annotated accordingly. **Method matters and is recorded**: three auto-exposure attempts were confounded first — focus changed mid-test, then a target 5cm away that the camera shadowed until the AEC railed (identical `ExposureTime=66654`/`AnalogueGain=7.876923` at every aperture, the ~8× analogue cap), then flicker from freshly-lit mains at ~30ms exposures. The method that works: fix shutter and gain to kill the AEC, flat evenly-lit target deliberately defocused so reframing stops mattering, shutter in multiples of 8333µs for 120Hz mains, measure the central 50%, and ⚠️ **calibrate the tone curve rather than assuming gamma** — a shutter ladder at fixed aperture gave 0/−0.415/−1/−2 stops → means 154/131/97/52, whose fitted exponent drifts 0.56→0.67→0.78. Also captured: a focus check at the current setting shows detail density up 35% (0.1576 → 0.2127 bytes/px) but **veiling glare off the house window now dominates**, and at 1920×1440 each pixel carries more information than at 4056×3040 — a lens-limited system, which argues for settling the optics before building anything to move more pixels. |
+| 19 | 2026-09-10 | **Phase 3 started. Camera window decided: 100×100×1mm double-side-polished fused quartz in a side wall.** Better than the "optical acrylic or glass" originally specified. Costs **0.1 stops** — the ">83% over 190–2500nm" spec is a broadband minimum dragged down at the UV/IR ends; in-band it is ~93%, just Fresnel loss — and shifts focus 0.33mm, inside DoF at f/2. ⚠️ **The real risk is thermal expansion, not optics:** quartz is 0.55×10⁻⁶/K against ~80 for ABS/PC, ~150× mismatch, giving ~0.6mm differential across a 100mm pane over a 75°C swing. **Silicone, never epoxy; no screw bearing on the pane.** Uncoated, so 8% reflects back into the box and **flocking is no longer optional**. **The transparent front lid is rejected** — tinted and visibly warped, edges swim when moved across a scene, which is the right quick test for waviness and disqualifying on its own. But it remains a light path: a clear front floods the interior and returns glare through the lens, so ⚠️ **cover it from the outside** (white), not blacked inside, because a clear lid admits solar load and absorbing it internally traps heat against this plan's own 60–70°C figure. **Window moves to a side wall**, which puts the optical axis along the box's longest dimension and dissolves the standoff problem. **Hole size is calculable**: at 16mm with the IMX477's 7.857mm diagonal the half-field is 13.8°, so `hole ≥ front element + 0.49 × d` where d includes wall thickness — ~25mm for a 22mm front element, so a 1⅛" saw. Added a **build order** (measure the assembly first, dry fit with zero drilling, drill last — the camera is constrained and the hole is not, so the camera decides) and ⚠️ **do not cantilever the camera off the backboard**: build the window wall as a sub-assembly carrying pane and camera together, squared and focused on the bench. |
 
 ---
 
@@ -1057,16 +1058,139 @@ Useful to know before tuning anything:
       round gland is miserable to seal. One set of seals beats two.
 - [ ] Conduit or armored sheath within squirrel reach
 
-### Camera window
+### Camera window — DECIDED: fused quartz in a side wall
 Required by the single-enclosure decision — the lens now shoots through the box.
 
-- [ ] **Optical acrylic or glass**, not whatever plastic is on hand
+**Material: 100×100×1mm double-side-polished fused quartz**, UV-Vis grade, in hand.
+Better than the "optical acrylic or glass" this plan originally called for.
+
+| Property | Value | Consequence |
+|---|---|---|
+| Transmission | >83% over 190–2500nm; **~93% in visible** | **0.1 stops.** The 83% is a broadband minimum dragged down by the deep-UV and IR ends; in-band it is just 4% Fresnel loss per surface |
+| Thickness | 1mm | Focus shift ≈ t/3 = **0.33mm**, inside DoF at f/2 |
+| Surfaces | double-side polished | The flatness and homogeneity the moulded lid lacked |
+| Coating | **none** | 8% reflects back into the box — see flocking below |
+
+#### ⚠️ Do not use the transparent lid
+The enclosure's front lid is clear but tinted and **visibly warped** — edges swim when
+you move it across a scene, which is the quick test for surface waviness and is
+disqualifying on its own. Rejected 2026-09-10 without further measurement.
+
+Two things follow anyway:
+
+- [ ] **The lid is still a light path.** A clear front floods the interior with
+      daylight, which bounces off the backboard, Pi and SSD and returns through the
+      lid into the lens. That is veiling glare generated inside the enclosure — the
+      same defect measured through a house window in pass 18, on a shorter path.
+- [ ] ⚠️ **Cover it from the OUTSIDE** — white vinyl, tape or paint — not blacked out
+      on the inside. A clear lid admits solar load directly onto the electronics, and
+      absorbing it internally traps the heat. This plan's own figure is 60–70°C in a
+      sunlit box with the Pi throttling hard.
+
+#### Window goes in a side wall, not the front
+- [ ] **Optical axis then runs along the box's longest internal dimension**, so the
+      camera-plus-lens length stops competing with the ~100mm depth. This dissolves
+      the standoff problem, see the build order below.
+- [ ] An opaque ABS/PC side wall takes a hole saw far more forgivingly than the
+      polycarbonate lid, which is also the sealing surface — a crack there is a dead
+      enclosure.
+- [ ] A window on a vertical face sheds water, and leaves the "all penetrations on
+      the bottom face" rule undisturbed.
+- [ ] ⚠️ Check the chosen face for **draft angle, moulding texture and internal ribs**.
+      A 100×100mm pane needs that much genuinely flat wall to seal against. Cutting
+      quartz down needs a diamond saw — it will not score and snap.
+
+#### ⚠️ Mount it compliantly — the CTE mismatch is the real risk
+Fused quartz is **0.55 × 10⁻⁶/K**. ABS/polycarbonate is around **80 × 10⁻⁶/K**, about
+150× higher. Across a 100mm pane and a 75°C swing (a Baton Rouge winter to a sunlit
+box, both of which this plan already anticipates):
+
+```
+plastic expands   ~0.60 mm
+quartz expands    ~0.004 mm
+differential      ~0.6 mm
+```
+
+- [ ] **Silicone sealant, never epoxy.** Bed the pane and let the silicone absorb the
+      movement.
+- [ ] **No hard clamping and no screw bearing directly on the pane.** Continuous
+      compliant gasket, not point loads. 1mm × 100mm quartz is a fragile plate.
+- [ ] This is the difference between a window that survives a year unopened and one
+      that cracks in the first cold snap.
+
+#### Hole size — calculate it, do not guess
+Too small vignettes the corners unrecoverably; too large weakens the wall and admits
+more stray light. IMX477 active area is 6.287 × 4.712mm, 7.857mm diagonal, so at 16mm
+the half-diagonal field angle is 13.8°:
+
+```
+hole diameter  >=  front element diameter  +  0.49 x d
+```
+
+`d` is front element to the **outer** face of the hole, including wall thickness — the
+hole is a tube, not a plane.
+
+- [ ] **Mount the pane on the inside face** over the hole. The seal then sits where
+      weather cannot reach it and the hole depth becomes a shallow hood.
+- [ ] Worked example: 2mm lens-to-glass gap + 1mm pane + 3mm wall → d ≈ 6mm → hole ≈
+      front element + 3mm. With a ~22mm front element that is ~25mm, so a **1⅛"
+      (28.6mm) hole saw** leaves sensible margin.
+- [ ] ⚠️ **Measure the actual front element before cutting.** 22mm is estimated off a
+      photograph.
+- [ ] Note the formula rewards keeping the lens close to the glass, which is also what
+      reflection control wants. Both constraints push the same way.
+
+#### Remaining window items
 - [ ] **Lens front as close to the window as possible.** Single biggest factor in
       killing internal reflections.
-- [ ] Black flocking or felt around the lens barrel
+- [ ] **Black flocking or felt around the lens barrel — not optional with uncoated
+      glass.** 8% of incoming light reflects off the two quartz surfaces and lands on
+      the backboard, Pi and walls, then returns into the lens.
 - [ ] External hood over the window for flare and rain — separate from the box
-      sunshade
-- [ ] Interior fogging is already handled by the Gore vent
+      sunshade.
+- [ ] Interior fogging is already handled by the Gore vent.
+
+### Build order — reversible before irreversible
+Two steps here cannot be undone, so everything that can be dry-fitted comes first.
+
+1. [ ] **Assemble camera + C-CS adapter + lens and measure mounting-plane to lens
+       front.** Every downstream decision derives from this one number against the
+       box's internal dimensions.
+2. [ ] **Decide where the camera must live** — driven by CSI ribbon length and by the
+       Pi/SSD/buck-converter and gland layout it has to coexist with. The camera is
+       the constrained item; place it first and arrange the rest around it.
+3. [ ] **Dry fit everything with zero drilling.** Tape, clamp, cardboard. Confirm the
+       lens reaches the glass plane, the ribbon routes without a tight bend, nothing
+       fouls the lid gasket, and the Pi and SSD clear the camera.
+4. [ ] Mark where the lens axis meets the chosen wall.
+5. [ ] **Only now drill.** The camera's position is heavily constrained and the hole's
+       is not, so let the constrained thing decide. Drilling first is how you discover
+       the ribbon will not reach.
+
+#### ⚠️ Do not cantilever the camera off the backboard
+A standoff spanning most of the box depth, carrying camera plus lens, is a spring.
+This plan is emphatic that at 88mm-equivalent angular shake is magnified and a mount
+that passes with a wide lens visibly softens frames — that applies inside the box too.
+
+- [ ] **Build the window wall as a sub-assembly instead.** A rigid plate — aluminium
+      or thick HDPE — carrying both the pane and the camera on short standoffs,
+      bolted to the inside of that wall. Then the lens-to-glass gap is set by the
+      plate rather than by how well something was strapped out over air, and it can be
+      squared and focused on the bench as a unit before installation.
+- [ ] The grid backboard then carries only Pi, SSD and buck converter, which is what
+      it is good at.
+
+#### Four things easy to miss
+- [ ] **Set final focus with the window installed**, not before. The pane moves the
+      focal plane, and rings locked beforehand are locked on the wrong number.
+- [ ] **Camera axis perpendicular to the pane.** Aiming is done by the external
+      bracket, so inside the box the camera should be square and stay square. Shooting
+      through glass off-axis adds ghosting on top of the glare.
+- [ ] **Heat.** Pi 4, SSD and buck converter all dump heat into a sealed box, and a hot
+      IMX477 is a noisier IMX477. Put the camera as far from those three as the layout
+      allows and give the buck converter its own corner.
+- [ ] **Lock the focus and aperture rings last**, after final focus through the
+      installed pane. Both moved repeatedly during pass 18 bench work.
 
 ### Aiming
 - [ ] **Face north** (northern hemisphere). Sun behind the camera, never in frame.
@@ -1306,14 +1430,21 @@ was wrong for 0.17 and the real lever is `alerts`/`detections` retention.
 | PoE+ splitter → 12V | Node power | 2 | ☑ decided |
 | Buck converter 12V→5V | Pi supply | 2 | ☐ |
 | Ethernet surge arrestor | Lightning protection | 2 | ☐ |
-| Optical acrylic/glass window | Enclosure port | 3 | ☐ |
+| 100×100×1mm fused quartz, DSP | Camera window — **in hand** | 3 | ☑ decided |
+| Neutral-cure silicone sealant | Bed the quartz compliantly — ⚠️ **never epoxy**, CTE mismatch | 3 | ☐ |
+| Window sub-plate (Al or HDPE) | Carries pane + camera as one bench-alignable unit | 3 | ☐ |
+| Standoffs, short | Camera to sub-plate — ⚠️ not a backboard cantilever | 3 | ☐ |
+| Black flocking / felt | Lens barrel + interior — **not optional, uncoated pane** | 3 | ☐ |
+| 1⅛" (28.6mm) hole saw | Window aperture — confirm against measured front element | 3 | ☐ |
+| White vinyl or paint | Cover the clear lid **from outside** (solar load) | 3 | ☐ |
 | Pi HQ Camera, IR-filtered | Sensor — **not NoIR** | 2 | ☑ decided |
 | 16mm C-mount lens, f/1.4 | Optics | 2 | ☑ decided (sourcing open) |
 | C-to-CS adapter | Back focus | 2 | ☐ |
-| IP66 enclosure ~200×150×100 | — | 3 | ☐ |
+| IP66 enclosure ~200×150×100 | **In hand.** Clear lid rejected as a window | 3 | ☑ |
 | M12 breather vent plug | Condensation | 3 | ☐ |
 | Cable glands PG7/PG9 | — | 3 | ☐ |
 | PUI AOM-5024L-HD-R | Bird mic capsule | 4 | ☐ |
+| USB3 SSD 128GB | Pi boot + root — **in hand**, 269 MB/s measured | 2 | ☑ |
 | USB sound card (CM108 class) | Bird mic input | 4 | ☐ |
 | AudioMoth USB Microphone | Ultrasonic | 5 | ☐ |
 | Active USB extender, shielded | AudioMoth → bird box | 5 | ☑ decided |
