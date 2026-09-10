@@ -1,7 +1,7 @@
 # Backyard Wildlife Monitoring Station — Build Plan
 
-**Status:** ✅ Phase 2 — live camera node on the bench — Pass 15
-**Last updated:** 2026-09-04
+**Status:** ✅ Phase 2 — live camera node on the bench — Pass 16
+**Last updated:** 2026-09-10
 
 A local-inference camera + acoustic station for bird ID (image + sound), with a
 parallel ultrasonic channel for bats and orthoptera. No third-party inference.
@@ -27,6 +27,7 @@ parallel ultrasonic channel for bats and orthoptera. No third-party inference.
 | 13 | 2026-08-26 | Repo created: github.com/cmbankester/wildlife. Config now under version control — the main work-machine risk is mitigated. Added secrets and media gitignore guidance (note: source video carries home GPS coordinates). |
 | 14 | 2026-08-27 | **Storage decision corrected — it was wrong twice over.** `record.retain` does not exist in Frigate 0.17 (renamed to `record.continuous`); Frigate rejected it and ran in **safe mode**, which skips all cleanup. And `continuous.days` already defaults to 0, so the setting was a no-op even spelled correctly. The real cause of 126 GB in 40 h was `detections.retain: 30d` covering the 55% of timeline a looping fixture marks as detections. **Recording is now off on the bench** — recording a loop of a file you already have stores nothing. Restore `alerts`/`detections` to 30 d with the real camera. Also: repo leak paths closed (`.MOV` was unignored, and the config re-export would have copied `birdnet.latitude`/`longitude` into the tracked template); `birdmap.txt` now tracked so pruning is diffable; **819 kernel GP faults** in `pipe2()` on CPU 1 wedged docker exec, health checks, and git until a reboot onto 6.8.0-138. |
 | 15 | 2026-09-04 | **Camera node live; the Pi 4 encoder ceiling is now measured.** Detect input moved to `rtsp://wildlife-pi:8554/feeder`. ⚠️ **The hardware H.264 encoder has two limits and only advertises one.** `v4l2-ctl` reports `Stepwise 32x32 - 1920x1920`, but the firmware also enforces **8192 macroblocks** (H.264 L4.1), stated nowhere and surfacing only as `encoder_create(): unable to activate output stream`. 1920x1440 (10800 MB) **fails**; 1664x1248 (8112 MB) is the ceiling. **2028x1520 is 12065 MB and cannot be hardware-encoded on a Pi 4 at all** — so locked decisions #4 (Pi 4 *for* its hardware encoder) and #6 (high-res detect, the snapshot is the deliverable) are in direct conflict, now with numbers: 2.08 MP available against 3.08 MP designed for, 68%. Sensor mode is correct and unaffected (`2028:1520:10:P`); the loss is one downscale step before encode. MJPEG is the open route that keeps both decisions. Also: **the bench motion mask was suppressing detection entirely** — 44% of a differently-shaped frame, `detection_fps` 0.0 with it, 8.2 without; removed, redraw against the real scene. **Open question #2 closed** — VA-API decodes real camera input clean (7.72ms, 10.0 process_fps, zero skipped); pass 11's failure was the corrupt out-of-band publisher, as suspected. Recording restored with `alerts`/`detections` at 30 d. |
+| 16 | 2026-09-10 | **The encoder is the only bottleneck — the ISP goes to 16384×16384.** So skipping the encoder removes the 1920 cap entirely, which opens two routes to full-MP capture, now written up as an open decision in Phase 2. Route A: MJPEG 1920×1440, config-only, intra-only (no inter-frame generation loss), fits the measured ~100 Mbps wifi, recording still works via a secondary path — but it is **unverified** whether the 8192-macroblock cap applies to JPEG. Route B: full-res RAM ring buffer with retroactive fetch on Frigate events. ⚠️ **Disk is the wrong medium for Route B — endurance, not bandwidth:** 185 MB/s = 15.98 TB/day would kill a 128 GB SSD in 4–6 days. RAM fits: ~1000 MB = 5.4 s of 4056×3040 against ~1.3 s detection latency. Cost is a custom libcamera app (the camera is exclusive, so one process must stream *and* buffer), and it abandons 2×2 binning — worse dawn/dusk noise at peak bird activity — while the lens likely cannot resolve 1.55 µm pixels anyway. ⚠️ **Frigate silently adds the `record` role** if no input declares it (observed: config said `[detect]`, runtime said `["record","detect"]`) — in a raw pipeline that would attach recording to 46 MB/s and write 166 GB/hour, so raw configs must declare roles explicitly. Measured on the node: 2 GB RAM (not 4/8), USB3 SSD 269 MB/s write, wifi ~100 Mbps sustained while streaming, hardware JPEG encoder present at `/dev/video31`. **Open question #2 (VA-API) closed in pass 15**; the workstation `mediamtx` container is now dead weight since the Pi publishes its own. |
 
 ---
 
@@ -796,6 +797,84 @@ Not needed now, but the C-mount makes it a ~2-minute, ~$30–250 swap later.
   diagonal. MP-rated machine vision glass (Computar, Kowa, Fujinon) meaningfully
   outperforms generic CCTV lenses, but binned mode narrows the gap.
 
+### ⚠️ Full-resolution capture — OPEN DECISION
+
+The pass 15 encoder ceiling caps **any streamed frame at 1920 px per axis**, so the
+2028×1520 this phase's framing math assumes can never leave the node as an encoded
+stream. Two routes to more pixels. They are not the same kind of change.
+
+**Measured constraints (pass 16), all on the bench node:**
+
+| Thing | Measured | Source |
+|---|---|---|
+| Encoder max, H.264 *and* MJPEG | 1920 px/axis | `v4l2-ctl` on `/dev/video11`, `/dev/video31` |
+| Encoder macroblock cap | 8192 (H.264 L4.1) | `encoder_create()` failure at 1920×1440 |
+| **ISP** max | **16384×16384** | `v4l2-ctl` on `/dev/video12` — the cap is the encoder, not the pipeline |
+| Hardware JPEG encoder | present | `/dev/video31 bcm2835-codec-encode_image` |
+| Node RAM | 1846 MB total, ~1574 free | **2 GB Pi 4**, not 4 or 8 |
+| Node storage | USB3 SSD, 269 MB/s write | `dd` O_DIRECT 3 GB on `/dev/sda2` |
+| Wifi throughput | ~100 Mbps sustained | 120 MB over SSH while streaming |
+| Clock sync | NTP active, both ends | needed for timestamp correlation |
+
+#### Route A — MJPEG at 1920×1440
+
+Config only. MediaMTX already supports `rpiCameraCodec: mjpeg` and the hardware JPEG
+encoder exists, so this costs nothing but a restart.
+
+- 2.76 MP, 90% of 2028×1520's linear resolution
+- **Intra-only**: no inter-frame compression, so the snapshot JPEG is the only lossy
+  step after capture. Worth more than it sounds — today every snapshot is H.264'd at
+  14 Mbps, decoded, then re-JPEG'd at quality 95
+- ~40–60 Mbps, fits inside the measured ~100 Mbps wifi ceiling
+- Recording still works: MediaMTX's secondary path carries an H.264 record stream
+- [ ] **UNVERIFIED:** does the 8192-macroblock cap apply to JPEG? It should not — JPEG
+      has 8×8 MCUs, no macroblocks and no inter-frame prediction. One restart to find out.
+      If it *does* apply, MJPEG tops out at 1664×1248 and Route A is worthless.
+
+#### Route B — full-res ring buffer, retroactive fetch
+
+Detect on a downscaled stream as now; the node holds recent **4056×3040** frames and
+serves them on request when Frigate reports an event.
+
+- 12.33 MP
+- **Disk is the wrong medium.** 18.5 MB/frame × 10 fps = 185 MB/s = **15.98 TB/day**.
+  A 128 GB consumer SSD (60–100 TBW) dies in 4–6 days. Bandwidth was never the problem.
+  The 269 MB/s measurement also likely sat in SLC cache; sustained writes on a cheap
+  drive collapse well below 185 MB/s.
+- **RAM is the right medium.** ~1000 MB of buffer = 54 frames = **5.4 s** at 10 fps,
+  against ~1.3 s of detection latency (≈1.0 s stream/IDR + 0.1 s detect + 0.2 s
+  round-trip). ~4× margin, zero write wear.
+- Request a **window** (±0.5 s ≈ 10 frames), not one frame: robust to clock skew, and
+  you get to pick the sharpest — your own best-frame scoring on better data than
+  Frigate had.
+- `rpicam-vid --circular` is this exact pattern but buffers *encoded* output, so it
+  inherits the 1920 cap. `rpicam-raw` gets full-res Bayer with no buffer. Neither
+  suffices.
+- **Cost: a custom libcamera application.** libcamera is exclusive, so one process must
+  serve the detect stream *and* hold the buffer. `libcamera-dev` is not installed.
+  Plus a workstation-side subscriber — which belongs in Phase 7, since it already plans
+  to consume `frigate/events`.
+
+#### ⚠️ Route B argues against two of this phase's own decisions
+
+- **It abandons 2×2 binning.** Binned mode was chosen for ~2× low-light SNR, faster
+  readout (less rolling-shutter skew on wingbeats), and halved resolution demand on the
+  lens. Dawn/dusk at ISO 1600–3200 is where this build strains, and that is peak bird
+  activity. The ISP downscale keeps most SNR for *detection*; the saved stills would be
+  measurably noisier.
+- **The lens may not resolve it.** Pixel pitch goes 3.1 µm → 1.55 µm. This plan says do
+  not stop below ~f/4 at 3.1 µm for diffraction; at 1.55 µm that boundary moves to about
+  f/2. With cheap CCTV glass soft wide open, a 900 px cardinal may carry 500–600 px of
+  real detail. The gain is real but well short of 4×.
+
+#### What decides it
+
+- [ ] Free the camera and capture a full-res still **through the actual lens at the
+      intended aperture**, plus a raw DNG. Judge real resolved detail, not pixel count.
+- [ ] Test MJPEG 1920×1440. If it works, 2.76 MP is available today for no effort.
+- [ ] Then decide whether 12.33 MP of softer, noisier pixels beats 2.76 MP of clean
+      ones. Decide with an image in hand, not in the abstract.
+
 ### Frigate config — optimized for observation quality, not security
 The usual Frigate advice is to run detection on a low-res substream to save CPU.
 **That advice is backwards for this build** and will quietly destroy the thing
@@ -1072,13 +1151,17 @@ deployed system.
 
 Roughly in the order they'll block progress.
 
-1. **Motion masking against the real camera.** detect CPU hit 154% from wind.
+1. **Full-resolution capture — MJPEG or a ring buffer?** The encoder caps every
+   streamed frame at 1920 px/axis, so 2028×1520 cannot leave the node encoded.
+   Route A (MJPEG 1920×1440) is config-only and works over wifi; Route B (full-res
+   RAM ring buffer + retroactive fetch) is 12.33 MP but needs a custom libcamera app
+   and abandons 2×2 binning. ⚠️ Decide with a real full-res still from the actual
+   lens in hand — the glass may not resolve 1.55 µm pixels. See Phase 2,
+   "Full-resolution capture".
+2. **Motion masking against the real camera.** detect CPU hit 154% from wind.
    No longer blocks a purchase, but still the difference between a tidy system
    and a wasteful one — and it determines sizing if compute ever moves. Bench
    masks don't transfer (frame is 2.7× wider).
-2. **VA-API on Alder Lake** — failed on the bench, but against a corrupt stream,
-   so unproven either way. Retest in Phase 2. Matters because the N100 uses the
-   same decode path and offloading decode keeps CPU free for audio models.
 3. **ffmpeg RTSP publish commands** — video, bird audio, and the dusk/dawn cron
    scheduling for the ultrasonic stream. Next working session.
 4. **Network segmentation** — VLAN or firewall rules to keep the node off the
@@ -1090,6 +1173,8 @@ Roughly in the order they'll block progress.
    f/2 before committing. Cheap CCTV glass varies wildly unit to unit.
 7. **Solar geometry and sizing.** Genuinely last — downstream of measured load,
    and the phase swap turned this from a guess into a measurement.
+
+*Closed in pass 15:* VA-API on Alder Lake — decodes real camera input clean (7.72ms, 10.0 process_fps, zero skipped). Pass 11's failure was the corrupt out-of-band RTSP publisher, not the decoder.
 
 *Closed in pass 7:* MQTT broker (yes, Mosquitto). *Storage and retention were
 also marked closed in pass 7 but reopened and re-closed in pass 14* — the key
