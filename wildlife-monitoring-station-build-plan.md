@@ -1193,6 +1193,32 @@ differential      ~0.6 mm
       compliant gasket, not point loads. 1mm × 100mm quartz is a fragile plate.
 - [ ] This is the difference between a window that survives a year unopened and one
       that cracks in the first cold snap.
+- [x] **Body confirmed ABS (2026-09-10)**, so the CTE figures above stand as written —
+      ~80 × 10⁻⁶/K against quartz's 0.55, giving the full 0.6mm differential. Silicone
+      is essential, not merely good practice.
+- [ ] ⚠️ **Use setting blocks; the wall is not flat.** The side-to-bottom join is
+      wavier and slightly bulgier than the side-to-back join. Silicone accommodates
+      waviness, but **only if the bead is thicker than the deviation** — press the pane
+      flat against a wavy wall and it squeezes to nothing at the high spots, which is
+      where it leaks and where the pane is stressed. Put two or three ~1mm shims
+      between pane and wall, rest the pane on them, and fill the rest. Uniform bead,
+      no bearing on high spots, and the pane floats in a compliant layer rather than
+      being pinched against ABS that moves 0.6mm relative to it.
+- [x] **Bead thickness is absorbed by the 1⅜" hole.** It pushes the pane toward the
+      lens and so adds to `d`:
+
+      | Bead | d | Hole needed | 1⅜" margin |
+      |---|---|---|---|
+      | 0.0mm | 8.5mm | 31.2mm | 3.7mm |
+      | 1.0mm | 9.5mm | 31.7mm | 3.3mm |
+      | 2.0mm | 10.5mm | 32.2mm | 2.8mm |
+
+- [ ] ⚠️ **Do not fix the camera's lateral position before the pane is bedded.**
+      Reference the 1mm air gap to the pane's **actual installed surface**, measured at
+      dry fit — bead thickness is known after the fact, not before, and 1mm of error
+      here is the entire gap. From the window wall's inner face the screw sits at
+      65.5mm with no bead, 66.5mm with a 1mm bead.
+
 
 #### Hole size — calculate it, do not guess
 Too small vignettes the corners unrecoverably; too large weakens the wall and admits
@@ -1724,6 +1750,7 @@ was wrong for 0.17 and the real lever is `alerts`/`detections` retention.
 | Ethernet surge arrestor | Lightning protection | 2 | ☐ |
 | 100×100×1mm fused quartz, DSP | Camera window — **in hand** | 3 | ☑ decided |
 | Neutral-cure silicone sealant | Bed the quartz compliantly — ⚠️ **never epoxy**, CTE mismatch | 3 | ☐ |
+| Setting blocks / ~1mm shims | Control bead thickness — ⚠️ wall is wavy, do not squeeze | 3 | ☐ |
 | L-bracket shelf (Al or steel) | Camera sits on it, screw up — ⚠️ never bolted flat to the board | 3 | ☐ |
 | Standoffs / shim stock | Fine-tune shelf height to put the axis at 31mm | 3 | ☐ |
 | Locating pins or bracket upstand | ⚠️ Anti-yaw — 1.68° vignettes; screw clamps, pins locate | 3 | ☐ |
@@ -1734,7 +1761,7 @@ was wrong for 0.17 and the real lever is `alerts`/`detections` retention.
 | Pi HQ Camera, IR-filtered | Sensor — **not NoIR** | 2 | ☑ decided |
 | 16mm C-mount lens, f/1.4 | Optics | 2 | ☑ decided (sourcing open) |
 | C-to-CS adapter | Back focus | 2 | ☐ |
-| IP66 enclosure ~200×150×100 | **In hand.** Clear lid rejected as a window | 3 | ☑ |
+| IP66 ABS enclosure, 225×325×115 | **In hand.** Clear lid rejected as a window | 3 | ☑ |
 | M12 breather vent plug | Condensation | 3 | ☐ |
 | Cable glands PG7/PG9 | — | 3 | ☐ |
 | PUI AOM-5024L-HD-R ×2 | Bird mic capsule — **in hand**, one spare | 4 | ☑ |
