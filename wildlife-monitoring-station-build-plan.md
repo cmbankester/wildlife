@@ -1172,6 +1172,7 @@ pane's rear edge sit 4mm behind the board's face plane.
 1. [ ] **Pane in first, with the backboard removed.** Full access to both faces of the
        wall for masking, bedding and cleaning up squeeze-out. Bedding a 1mm pane past an
        installed backboard with 4mm of overlap would be miserable.
+       See "Bedding the pane" for bead placement and the squeeze-out budget.
 2. [ ] Backboard back in.
 3. [ ] Shelf onto the backboard.
 4. [ ] Camera onto the shelf, 46.0mm out.
@@ -1275,6 +1276,52 @@ gap so the lip never touches the pane.
 - [ ] Note the formula rewards keeping the lens close to the glass, which is also what
       reflection control wants. Both constraints push the same way — the lip is the
       only thing stopping you going closer.
+
+#### Bedding the pane — procedure
+**Bead on the enclosure, not on the glass.** Three reasons:
+
+- You can see what you are doing. A bead on a fixed wall is controllable; a bead on a
+  1mm quartz pane means handling a fragile part with wet sealant on it, then placing it
+  blind.
+- **The pane is transparent — use that.** Setting it onto a bead on the wall lets you
+  watch the bead compress and spread *through the glass*, so voids, bubbles and gaps in
+  the ring are visible before cure. An opaque gasket never gives you that.
+- Cleanup stays reachable. Misplaced sealant on the wall wipes off; misplaced sealant on
+  the pane's wall-facing surface is in the optical path permanently.
+
+**A continuous ring ~50mm in diameter, centred on the hole** — roughly 7–8mm out from
+the hole's edge. Not near the pane's edge.
+
+The governing reason is thermal: CTE strain scales with the **bonded span**, not with
+the pane size.
+
+| Ring diameter | Differential across it, 75°C swing |
+|---|---|
+| 100mm (near the pane edge) | 0.60mm |
+| 70mm | 0.42mm |
+| **50mm** | **0.30mm** |
+
+Beading near the edge doubles the movement the joint must survive for no benefit — the
+pane weighs ~22g and a 50mm ring holds that easily. Two lesser reasons agree: a tighter
+ring shrinks the vented annulus between pane and wall where condensation can sit beside
+the aperture, and it keeps sealant away from the lid gasket, only 7.5mm from the pane's
+front edge.
+
+- [ ] ⚠️ **The 7–8mm standoff from the hole edge is the squeeze-out budget.** Sealant
+      spreads inward when the pane is set down, and **silicone inside the aperture is
+      unrecoverable** — that face is never reachable again.
+- [ ] **Place the setting blocks outboard, near the pane's edges.** A 50mm ring leaves
+      ~25mm of 1mm quartz overhanging unsupported at each edge; outboard blocks control
+      bead thickness *and* support that overhang while you work.
+- [ ] ⚠️ **Clean both faces immediately before bedding.** Isopropyl, lint-free. The
+      wall-facing surface is permanently in the light path and permanently unreachable —
+      a fingerprint or a hair there is a defect for the life of the build.
+- [ ] **Inspect through the glass after setting**, before the sealant skins: look for a
+      continuous wetted ring with no voids.
+- [ ] **Cure before it goes outside.** Neutral-cure skins in about an hour, wants a day
+      before handling, and up to a week for full cure through section. Neutral-cure
+      specifically — acetoxy cure releases acetic acid, which does not belong near
+      optics or electronics.
 
 #### Remaining window items
 - [ ] **Lens front as close to the window as possible.** Single biggest factor in
