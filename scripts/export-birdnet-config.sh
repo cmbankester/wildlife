@@ -22,57 +22,78 @@ DST=birdnet-go/config/config.yaml.example
 
 [ -f "$SRC" ] || { echo "error: $SRC not found" >&2; exit 1; }
 
-python3 - "$SRC" "$DST" <<'PY'
-import re, sys
+awk '
+function ltrim(s) { sub(/^[ \t]+/, "", s); return s }
+function rtrim(s) { sub(/[ \t]+$/, "", s); return s }
+function trim(s)  { return rtrim(ltrim(s)) }
 
-src, dst = sys.argv[1], sys.argv[2]
-
-# Matched against the full dotted path, by suffix. Most specific wins.
-BLANK_PATH = {
-    "birdnet.latitude":       "0",
-    "birdnet.longitude":      "0",
+BEGIN {
+    # Matched against the full dotted path, or any suffix of it after a dot.
+    # Most specific wins because these are checked before the key-only list.
+    blank_path["birdnet.latitude"]           = "0"
+    blank_path["birdnet.longitude"]          = "0"
     # Without this the template claims a configured location while carrying
     # 0/0, so a copied template looks set up when it is not.
-    "birdnet.locationconfigured": "false",
-    "birdweather.id":         '""',
-    "security.sessionsecret": '""',
+    blank_path["birdnet.locationconfigured"] = "false"
+    blank_path["birdweather.id"]             = "\"\""
+    blank_path["security.sessionsecret"]     = "\"\""
+
+    # Matched on the key alone, in any section. Over-scrubbing here is
+    # harmless: the .example is a template, not a working config.
+    split("clientsecret sessionsecret password apikey stationid token tokenfile passwordfile", k, " ")
+    for (i in k) blank_key[k[i]] = 1
+
+    depth = 0        # open mapping levels; stack_indent[] / stack_key[]
+    n_changed = 0
 }
-# Matched on the key alone, in any section. Over-scrubbing here is harmless:
-# the .example is a template, not a working config.
-BLANK_KEY = {
-    "clientsecret", "sessionsecret", "password", "apikey",
-    "stationid", "token", "tokenfile", "passwordfile",
-}
 
-stack = []            # (indent, key) for each open mapping level
-out, changed = [], []
+{
+    line = $0
+    # A mapping entry: optional indent, a key, a colon, then the rest.
+    if (match(line, /^[ \t]*[A-Za-z0-9_-]+:/) == 0) { print line; next }
 
-for line in open(src):
-    m = re.match(r"^(\s*)([\w-]+):(.*)$", line.rstrip("\n"))
-    if not m:
-        out.append(line)
-        continue
+    indent = match(line, /[^ \t]/) - 1
+    key    = line
+    sub(/^[ \t]*/, "", key)
+    sub(/:.*$/, "", key)
+    rest   = line
+    sub(/^[ \t]*[A-Za-z0-9_-]+:/, "", rest)
+    val    = trim(rest)
 
-    indent, key, rest = len(m.group(1)), m.group(2), m.group(3)
-    while stack and stack[-1][0] >= indent:
-        stack.pop()
-    path = ".".join(k for _, k in stack + [(indent, key)])
-    stack.append((indent, key))
+    # Close any mapping levels at or deeper than this one, then push.
+    while (depth > 0 && stack_indent[depth] >= indent) depth--
+    depth++
+    stack_indent[depth] = indent
+    stack_key[depth]    = key
 
-    val = rest.strip()
+    path = stack_key[1]
+    for (i = 2; i <= depth; i++) path = path "." stack_key[i]
+
+    # A bare "key:" opens a nested mapping and holds no value of its own.
     # ${VAR} references are placeholders by design -- keep them, they document
     # the intended wiring and hold no secret.
-    if val and not re.fullmatch(r"\$\{[^}]+\}", val):
-        repl = next((v for p, v in BLANK_PATH.items() if path == p or path.endswith("." + p)), None)
-        if repl is None and key in BLANK_KEY:
-            repl = '""'
-        if repl is not None and val != repl:
-            out.append(f"{' ' * indent}{key}: {repl}\n")
-            changed.append(path)
-            continue
-    out.append(line)
+    if (val == "" || val ~ /^\$\{[^}]+\}$/) { print line; next }
 
-open(dst, "w").writelines(out)
-print(f"wrote {dst}")
-print(f"scrubbed {len(changed)}: " + (", ".join(changed) if changed else "(nothing)"))
-PY
+    repl = ""
+    for (p in blank_path)
+        if (path == p || substr(path, length(path) - length(p)) == "." p) {
+            repl = blank_path[p]; break
+        }
+    if (repl == "" && (key in blank_key)) repl = "\"\""
+
+    if (repl != "" && val != repl) {
+        pad = substr(line, 1, indent)
+        print pad key ": " repl
+        n_changed++
+        changed = changed (n_changed > 1 ? ", " : "") path
+        next
+    }
+    print line
+}
+
+END {
+    printf "scrubbed %d: %s\n", n_changed, (n_changed ? changed : "(nothing)") > "/dev/stderr"
+}
+' "$SRC" > "$DST"
+
+echo "wrote $DST"
