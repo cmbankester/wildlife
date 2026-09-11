@@ -1124,11 +1124,12 @@ out of a side wall whose flat area is 115 × 325mm.
 - [x] *Considered and rejected:* shifting the pane forward to clear the backboard
       entirely. It buys 4mm at the back and costs 4mm at the front, dropping the front
       margin to 3.5mm — see the gasket warning below. Worse trade.
-- [ ] ⚠️ **Verify the 115mm reaches the gasket or stops short of it.** The front edge is
-      the lid's **sealing surface**. Silicone squeeze-out onto it, or a pane edge
-      encroaching on it, compromises IP66 on a box meant to stay shut for a year. If
-      115mm runs all the way to the gasket, the usable depth is less and the pane shifts
-      back into the backboard gap — which is what that gap is for.
+- [x] **Gasket confirmed clear (2026-09-10).** It meets at the edge of the lip and
+      does not intrude onto the flat wall, so the **full 115mm is usable** and the
+      centred pane leaves **7.5mm between its front edge and the sealing surface**.
+      Still tool the front bead carefully and wipe squeeze-out before it skins —
+      silicone migrates further than expected, and 7.5mm is comfortable rather than
+      generous. Losing IP66 on a box meant to stay shut a year is the cost.
 
 **Height: mount low.** Two independent reasons:
 
@@ -1142,13 +1143,21 @@ out of a side wall whose flat area is 115 × 325mm.
   where the noise budget is already strained.
 
 ```
-axis height     >= 65.5 mm above the internal floor
-shelf surface   >= 34.5 mm  (axis - 31)
+axis height     ~65 mm  (geometric floor 56mm; bead access is the real limit)
+shelf surface   ~34 mm  (axis - 31)
 ```
 
-- [ ] ⚠️ **65.5mm is a floor, not a target**: moulded corner radius (assumed **8mm —
-      verify**) + 7.5mm bead margin + 50mm half-pane. Below it the pane runs into the
-      corner radius and a continuous bead becomes impossible.
+- [x] **Corner fillet measured ~1mm** (2026-09-10, by sliding the pane down until it
+      stopped sitting flush). Far sharper than the 8mm assumed, so the geometric
+      floor drops to ~56mm. ⚠️ **But geometry is no longer the constraint — sealant
+      access is.** Allow ~10mm below the pane for a nozzle and for tooling the bead,
+      giving ~61mm. **65mm remains a sensible target**, now a comfortable choice
+      rather than a hard floor; going lower buys a few mm of siting flexibility and
+      costs bead access, which is where seals fail.
+- [ ] ⚠️ That test measured the **side-wall-to-back-wall** corner. The one setting the
+      height floor is **side-wall-to-bottom**. Moulded fillets are usually consistent
+      so 1mm is very likely right, but confirm — it is the difference between the pane
+      sitting flat and rocking on an unexpected fillet.
 - [ ] It also keeps the camera clear of the bottom face, where the cable glands are and
       where any water that does get in will pool.
 - [ ] Camera zone is ~116mm of the 325mm height, leaving **~210mm of backboard** above
