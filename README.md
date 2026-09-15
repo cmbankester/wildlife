@@ -20,6 +20,10 @@ Frigate's UI is on port 8971 (the authenticated one). BirdNET-Go's is on 18080 -
 container still listens on 8080, but the 80xx band is contested on the host, so the
 published port uses the same 1-prefix convention as mediamtx's 18554.
 
+Two machines are covered here. Everything except `camera-node/` runs on the
+workstation; `camera-node/` holds the config for the Raspberry Pi that captures and
+publishes the stream. See `camera-node/README.md`.
+
 ## Layout
 
 ```
@@ -27,6 +31,9 @@ docker-compose.yml
 frigate/config/config.yml                  Frigate camera, detector, and record config
 mosquitto/config/mosquitto.conf            Broker listener and persistence
 birdnet-go/config/config.yaml.example      BirdNET-Go config, secrets blanked
+
+camera-node/mediamtx.yml                   Pi camera node — stream config
+camera-node/mediamtx.service               Pi camera node — systemd unit
 ```
 
 ## Host prerequisites
