@@ -1,6 +1,6 @@
 # Backyard Wildlife Monitoring Station — Build Plan
 
-**Status:** 🔨 Phase 3 — enclosure build started — Pass 21
+**Status:** 🔨 Phase 3 — enclosure build started — Pass 22
 **Last updated:** 2026-09-14
 
 A local-inference camera + acoustic station for bird ID (image + sound), with a
@@ -33,6 +33,7 @@ parallel ultrasonic channel for bats and orthoptera. No third-party inference.
 | 19 | 2026-09-10 | **Phase 3 started. Camera window decided: 100×100×1mm double-side-polished fused quartz in a side wall.** Better than the "optical acrylic or glass" originally specified. Costs **0.1 stops** — the ">83% over 190–2500nm" spec is a broadband minimum dragged down at the UV/IR ends; in-band it is ~93%, just Fresnel loss — and shifts focus 0.33mm, inside DoF at f/2. ⚠️ **The real risk is thermal expansion, not optics:** quartz is 0.55×10⁻⁶/K against ~80 for ABS/PC, ~150× mismatch, giving ~0.6mm differential across a 100mm pane over a 75°C swing. **Silicone, never epoxy; no screw bearing on the pane.** Uncoated, so 8% reflects back into the box and **flocking is no longer optional**. **The transparent front lid is rejected** — tinted and visibly warped, edges swim when moved across a scene, which is the right quick test for waviness and disqualifying on its own. But it remains a light path: a clear front floods the interior and returns glare through the lens, so ⚠️ **cover it from the outside** (white), not blacked inside, because a clear lid admits solar load and absorbing it internally traps heat against this plan's own 60–70°C figure. **Window moves to a side wall**, which puts the optical axis along the box's longest dimension and dissolves the standoff problem. **Hole size is calculable**: at 16mm with the IMX477's 7.857mm diagonal the half-field is 13.8°, so `hole ≥ front element + 0.49 × d` where d includes wall thickness — **31.2mm** with the measured geometry — front element ~27mm, lens lip 3.5mm deep at 38mm OD, wall 3.0mm confirmed, quartz 1mm, 1mm air gap — so a **1⅜" (34.9mm) saw**. ⚠️ The lip does not vignette (built-in hood) but it is the frontmost surface, so it puts a ~4mm floor under "lens as close to the window as possible" and that distance propagates into the hole. Lip measures 38mm OD / 36mm ID — a 1mm-thick rim, so **not** usable as a bearing surface or baffle: a 1⅜" hole leaves only 1.54mm of land and the lip bore is wider than the hole. Spill light is controlled by flocking on the barrel and interior instead, which is also the only option that does not press on 1mm quartz. Vignetting check closed: 36mm bore against 28.7mm required, 3.7mm clearance per side. Added a **build order** (measure the assembly first, dry fit with zero drilling, drill last — the camera is constrained and the hole is not, so the camera decides) and ⚠️ **camera mounts on an L-bracket shelf off the vertical backboard**, sitting on its base with the tripod screw running up. Bolting it flat to the vertical board instead would put the screw on a horizontal axis with the lens cantilevered sideways, so **gravity applies a constant torque about the screw** — a static load resisted only by friction, failing with the lens swung to vertical. The shelf converts that torque into a normal force. ⚠️ The **camera** sits on the shelf, not the lens: the barrel underside is 12mm above the mount plane, so resting the barrel would put the axis at 19mm rather than 31mm and misplace the hole by 12mm. A shelf also keeps `d`, and therefore the hole, small. **Assembly measured with the adapter fitted: 63.5mm from the tripod-screw centre to the lip tip, optical axis 31.0mm above the mount plane** — which fully specifies the bracket (flat surface 31mm below the axis, screw 64.5mm back from the pane). Focus travel is only ~0.1mm across 2.0–2.5m so it does not eat the 1mm air gap. ⚠️ **The tripod thread is a single fastener on a vertical axis and yaws on friction alone: 1.68° consumes the entire 1.86mm lateral margin and vignettes**, and perpendicularity to the pane goes well before that — so it needs locating pins, and a padded saddle under the 38mm barrel to take 63.5mm of lens overhang off one screw. Ribbon length confirmed **not** a constraint; the chosen wall is flat with just over 100mm of clear area, so the 100mm pane fits with only a few mm for the bead. |
 | 20 | 2026-09-10 | **Enclosure measured — 225 × 325 × 115mm internal**, notably larger than the ~200×150×100 originally specified, so the window geometry resolves comfortably. Optical axis runs along the width, out a side wall whose flat area is 115 × 325. **Every placement figure is now a number:** hole centre 57.5mm from the back wall, 7.5mm bead margin per side, camera 46.0mm out along the shelf from the backboard face (board standing ~11.5mm off the back wall), screw 64.5mm from the window wall. The pane's rear edge tucks **4mm behind the backboard plane**, which the gap around the removable board accommodates — so **the pane goes in first with the board out**, giving access to both wall faces for bedding and squeeze-out. ⚠️ **The front edge is the lid's sealing surface**: verify whether the 115mm reaches the gasket or stops short, because silicone on a sealing face costs IP66 on a box meant to stay shut a year. Considered and rejected shifting the pane forward to clear the backboard — buys 4mm at the back, costs 4mm at the gasket. **Camera mounts low**, for mounting flexibility *and* because ⚠️ heat rises: Pi, SSD and buck converter above the camera means convection carries their heat away from the sensor rather than past it, which matters against a dawn/dusk noise budget already strained. Floor is **65.5mm axis height** (corner radius, assumed 8mm and to be verified, + bead margin + half pane), leaving ~210mm of backboard above for electronics. Earlier "pane margin is thin" note superseded — it assumed 105mm. **Parts in hand:** 2× AOM-5024L-HD-R (one spare), a **UGREEN USB-to-3.5mm TRRS adapter** (24bit/96k — plug-in power is probably inherent, since a TRRS headset jack must bias the electret mics headsets use, the same part class as the AOM-5024L; ⚠️ but **it needs a TRRS plug, not TRS** — a TRS sleeve bridges Ring 2 and Sleeve and shorts the mic to ground, failing silently — and the mic path bandwidth is unspecified and worth measuring, since headset inputs are voice-optimised and BirdNET needs clean response past 8kHz), and an AudioMoth USB mic with its purpose-made case, which has an open port at the element and therefore **suits** the Phase 5 rule rather than conflicting with it. |
 | 21 | 2026-09-14 | **The camera node's config is now in the repo** (`camera-node/`), after a failure that took four hours to diagnose and would have taken ten minutes if it had been. The Pi appeared not to boot — solid green LED, then an uncountable flicker, no SSH. ⚠️ **It was booting fine.** cloud-init ran to completion twice with zero module failures; the flicker was ordinary disk activity, not an error code, and error codes are slow and deliberate with a pause before repeating. What had failed was networking: `/etc/NetworkManager/system-connections/` **emptied** and both `/etc/netplan/90-NM-*.yaml` **truncated to 0 bytes**, all at 2026-09-10 13:01 — eleven minutes after the last good SSH session. Not cloud-init (no log activity then), not apt (zero dpkg entries that day), not the SSD (enumerated clean, filesystem intact, 4% full). Cause undetermined; it coincided with the camera being physically removed. **Recovery method worth reusing:** pull the USB SSD, mount it on the workstation **read-only with `norecovery`** via `udisksctl` (unprivileged, no writes), recover config first, diagnose second. **Ethernet restored it with no configuration at all** — `/lib/netplan/00-network-manager-all.yaml` survived because it is in `/lib` not `/etc`, and NetworkManager auto-generates a wired profile on carrier. **Decision: the node is wired.** That is the Phase 2 design rather than a fallback, since the locked PoE+ topology means a deployed node has an Ethernet cable by definition; it also gives 0.29ms latency and reopens the raw-video option that wifi's ~100 Mbps ceiling had ruled out. ⚠️ **No wifi profile now exists** — restoring it needs `nmcli device wifi connect` with credentials still present in `/boot/firmware/network-config`, and Phase 6 will need it when nodes become relocatable. Note the node's address changed from .133 to .131 when it moved to Ethernet; DHCP reservations on both MACs would stop the hostname flapping. |
+| 22 | 2026-09-14 | **Bird mic chain tested end to end and it works.** AOM-5024L-HD-R on a TRRS plug into the UGREEN adapter, on the Pi. Enumerates as a real capture device (`KT USB Audio`, KTMicro) — the "DAC" naming was misleading — S16_LE **mono** at 44.1/48kHz, so 48k and mono are both available and both are what this plan wants. **Plug-in power is present** and **CTIA was the right pinout**; neither the OMTP swap nor the mic/ground swap was needed. Ambient floor −32 dB mean, −16 dB peak. **No AGC** — the keys test clipped at 0.0 dB, which an AGC would have prevented, so the path is linear. ⚠️ Capture gain sits at 100% and clipped on a loud close source; birds at 2.5m will be far quieter, but check once deployed. **Bandwidth, the figure on no spec sheet: flat from 4kHz to 20kHz**, rolling off only at Nyquist, with the **peak at 4–8kHz where BirdNET's diagnostic energy sits**. The voice-tuned rolloff Phase 4 feared is simply absent. Method caveat recorded: this measures the whole chain against a keys source, so it does not separate mic response from source spectrum — but content *reaching* 20kHz proves nothing filters it out. ⚠️ **The listening test caught what measurement could not:** clean with no crackle (solder joints sound), slight hum attributable to a room water pump rather than a TRRS ground fault, and faint speech **intelligible underneath loud keys** — which is better validation than any number here, since it demonstrates real dynamic range, no AGC pumping, and enough sensitivity to resolve a quiet distant source against a loud near one. ⚠️ **Remaining Phase 4 work: the mic is on the Pi and BirdNET-Go is on the workstation.** Bridge it as this plan already specifies — audio as its own mono RTSP stream, separate from video, via the MediaMTX already running on the node — then re-enable the source disabled in `3dbc1e2`. |
 
 ---
 
@@ -1560,10 +1561,6 @@ estimate of "just over 100mm" and is superseded by the measurement above.
 - [ ] **Publish audio as its own mono RTSP stream**, separate from video. Sidesteps
       stereo channel-selection entirely and keeps BirdNET-Go independent of Frigate.
 
-> Note: this windscreen advice is **bird-only**. See Phase 5 for why it inverts.
-
----
-
 ### Bird mic wiring — ⚠️ TRRS, not TRS
 Interface in hand is a **UGREEN USB-to-3.5mm adapter**, TRRS, 24-bit/96kHz. The
 plug-in-power question this plan flags is probably answered by its design: a TRRS
@@ -1584,17 +1581,70 @@ A 3-conductor TRS plug does not merely miss the mic contact — its long sleeve 
 the jack's Ring 2 and Sleeve, **shorting the mic input to ground**. The result is
 silence, indistinguishable from a dead capsule or absent bias.
 
-- [ ] CTIA is near-universal, but **OMTP swaps Ring 2 and Sleeve**. If there is no
-      signal after soldering, try that swap before diagnosing anything else.
-- [ ] ⚠️ **Measure the mic-path bandwidth before trusting it.** Headset mic inputs are
-      voice-optimised and some adapters roll off hard above a few kHz or apply AGC.
-      BirdNET needs clean response well past 8kHz — much diagnostic energy sits at
-      4–10kHz. The 96kHz figure describes the *headphone* path; the mic path can be
-      narrower and is not specified anywhere.
-- [ ] Record on the Pi and check spectrum, noise floor and AGC behaviour. That also
-      re-enables the BirdNET-Go audio source disabled in `3dbc1e2`, which has been
-      logging `no device found matching "sysdefault"` since there was no capture
-      hardware at all.
+- [x] **CTIA confirmed correct (2026-09-14).** Signal on sleeve, ground on ring 2.
+      The OMTP swap was not needed.
+- [x] **Bandwidth measured and it is fine** — flat 4–20kHz, peak at 4–8kHz. See
+      the test results below. The voice-tuned rolloff this warned about is absent.
+- [x] Done. No AGC, sensible noise floor, plug-in power present.
+
+---
+
+#### Mic chain — TESTED 2026-09-14, works
+AOM-5024L-HD-R soldered to a TRRS plug, into the UGREEN adapter, on the Pi. Every way
+this could have failed is ruled out.
+
+| Check | Result |
+|---|---|
+| Enumerates as capture | `card 3: Audio [KT USB Audio]`, KTMicro. It records — the "DAC" naming was misleading |
+| Format | S16_LE, **mono**, 44100/48000 Hz. 48k is what BirdNET wants, and mono is what this plan wants |
+| **Plug-in power** | **Present.** Live signal, so the TRRS jack biases the electret as predicted |
+| **Wiring** | **CTIA was the right guess.** Signal on sleeve, ground on ring 2 |
+| Ambient noise floor | −32 dB mean, −16 dB peak — sensible floor, good headroom |
+| AGC | **None.** The keys test clipped at 0.0 dB; an AGC would have prevented that. A linear path is what detection work wants |
+
+⚠️ **Capture gain is at 100% and keys at close range clipped** (216 samples at full scale).
+Birds at 2.5m will be far quieter so this may never matter, but check for clipping once
+deployed. Backing off to ~80% is available; it costs noise-floor headroom, so do not do
+it preemptively.
+
+**Bandwidth — the measurement that is on no spec sheet.** Octave-band energy from a keys
+jingle, which has real content past 10kHz:
+
+```
+  125-250   Hz   -44.1 dB        4000-8000   Hz   -30.1 dB  <- peak
+  500-1000  Hz   -47.5 dB        8000-12000  Hz   -34.3 dB
+ 1000-2000  Hz   -39.1 dB       12000-16000  Hz   -34.5 dB
+ 2000-4000  Hz   -32.7 dB       16000-20000  Hz   -34.5 dB
+                                20000-23500  Hz   -43.0 dB  <- Nyquist rolloff
+```
+
+- [x] **No cliff at 8kHz.** Energy holds essentially flat from 4kHz to 20kHz, dropping
+      only where the anti-alias filter lives. This is not the voice-tuned input the
+      plan feared, and the **peak sits at 4–8kHz, exactly where BirdNET's diagnostic
+      energy is**.
+- [ ] *Method caveat:* this measures the whole chain — keys, capsule, adapter — and keys
+      have their own bright spectrum, so it does not separate the mic's response from the
+      source's. Content *reaching* 20kHz does prove nothing in the chain filters it out,
+      which is what mattered.
+
+**Listening test (the part measurement could not do).** Clean, no crackle — so the
+solder joints are sound. Very slight hum, attributable to a water pump in the room
+rather than electrical: a TRRS ground fault would show as steady 60/120Hz. And faint
+speech stayed **intelligible underneath the loud keys**, which is better validation than
+any number here — it means real dynamic range, no AGC pumping quiet content down, and
+enough sensitivity to resolve a quiet distant source against a loud near one. That is
+the actual job.
+
+#### Remaining Phase 4 work
+- [ ] ⚠️ **The mic is on the Pi; BirdNET-Go runs on the workstation.** Its audio source
+      is still disabled from `3dbc1e2`, when the workstation had no capture hardware at
+      all. Bridge it the way this plan already specifies: **publish audio as its own
+      mono RTSP stream, separate from video.** MediaMTX is already running on the node.
+- [ ] Then re-enable the BirdNET-Go source, pointing at that stream rather than a local
+      sound card.
+
+
+> Note: this windscreen advice is **bird-only**. See Phase 5 for why it inverts.
 
 ---
 
@@ -1812,8 +1862,8 @@ was wrong for 0.17 and the real lever is `alerts`/`detections` retention.
 | IP66 ABS enclosure, 225×325×115 | **In hand.** Clear lid rejected as a window | 3 | ☑ |
 | M12 breather vent plug | Condensation | 3 | ☐ |
 | Cable glands PG7/PG9 | — | 3 | ☐ |
-| PUI AOM-5024L-HD-R ×2 | Bird mic capsule — **in hand**, one spare | 4 | ☑ |
-| UGREEN USB-3.5mm TRRS adapter | Bird mic input — **in hand**, 24bit/96k; ⚠️ needs a TRRS plug | 4 | ☑ |
+| PUI AOM-5024L-HD-R ×2 | Bird mic capsule — **tested working**, one spare | 4 | ☑ |
+| UGREEN USB-3.5mm TRRS adapter | Bird mic input — **tested**: bias OK, flat 4–20kHz, no AGC | 4 | ☑ |
 | AudioMoth USB Mic + mic case | Ultrasonic — **in hand**; case has an open mic port, suits Phase 5 | 5 | ☑ |
 | USB3 SSD 128GB | Pi boot + root — **in hand**, 269 MB/s measured | 2 | ☑ |
 | Active USB extender, shielded | AudioMoth → bird box | 5 | ☑ decided |
