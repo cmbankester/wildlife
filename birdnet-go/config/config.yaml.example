@@ -428,7 +428,25 @@ realtime:
         species:
             - Strigiformes
     rtsp:
-        streams: []
+        streams:
+            - name: Feeder
+              url: rtsp://wildlife-pi.banklington:8554/birdmic
+              enabled: true
+              type: rtsp
+              transport: tcp
+              channelMode: left
+              gain: 0
+              quietHours:
+                enabled: false
+                mode: fixed
+                startTime: "22:00"
+                endTime: "06:00"
+                startEvent: sunset
+                startOffset: 0
+                endEvent: sunrise
+                endOffset: 0
+              models:
+                - birdnet
         transport: tcp
         health:
             healthydatathreshold: 60

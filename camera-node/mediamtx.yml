@@ -893,6 +893,14 @@ paths:
     rpiCameraHeight: 768
     rpiCameraFPS: 10
     rpiCameraMJPEGQuality: 85
+
+  # Bird mic. LPCM (uncompressed) so nothing is lost before BirdNET sees it;
+  # 48kHz mono is 768 kbps, trivial on wired ethernet. plughw: not hw: -- the raw
+  # device rejects ffmpegs period size. Device by NAME so it survives reboots,
+  # since card numbers shift.
+  birdmic:
+    runOnInit: ffmpeg -hide_banner -loglevel warning -nostdin -f alsa -ac 1 -ar 48000 -i plughw:Audio,0 -c:a pcm_s16be -f rtsp -rtsp_transport tcp rtsp://localhost:$RTSP_PORT/$MTX_PATH
+    runOnInitRestart: yes
 #paths:
   # example:
   # my_camera:

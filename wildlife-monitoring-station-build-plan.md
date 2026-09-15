@@ -1,7 +1,7 @@
 # Backyard Wildlife Monitoring Station — Build Plan
 
-**Status:** 🔨 Phase 3 — enclosure build started — Pass 22
-**Last updated:** 2026-09-14
+**Status:** 🔨 Phase 3 — enclosure build started — Pass 23
+**Last updated:** 2026-09-15
 
 A local-inference camera + acoustic station for bird ID (image + sound), with a
 parallel ultrasonic channel for bats and orthoptera. No third-party inference.
@@ -34,6 +34,7 @@ parallel ultrasonic channel for bats and orthoptera. No third-party inference.
 | 20 | 2026-09-10 | **Enclosure measured — 225 × 325 × 115mm internal**, notably larger than the ~200×150×100 originally specified, so the window geometry resolves comfortably. Optical axis runs along the width, out a side wall whose flat area is 115 × 325. **Every placement figure is now a number:** hole centre 57.5mm from the back wall, 7.5mm bead margin per side, camera 46.0mm out along the shelf from the backboard face (board standing ~11.5mm off the back wall), screw 64.5mm from the window wall. The pane's rear edge tucks **4mm behind the backboard plane**, which the gap around the removable board accommodates — so **the pane goes in first with the board out**, giving access to both wall faces for bedding and squeeze-out. ⚠️ **The front edge is the lid's sealing surface**: verify whether the 115mm reaches the gasket or stops short, because silicone on a sealing face costs IP66 on a box meant to stay shut a year. Considered and rejected shifting the pane forward to clear the backboard — buys 4mm at the back, costs 4mm at the gasket. **Camera mounts low**, for mounting flexibility *and* because ⚠️ heat rises: Pi, SSD and buck converter above the camera means convection carries their heat away from the sensor rather than past it, which matters against a dawn/dusk noise budget already strained. Floor is **65.5mm axis height** (corner radius, assumed 8mm and to be verified, + bead margin + half pane), leaving ~210mm of backboard above for electronics. Earlier "pane margin is thin" note superseded — it assumed 105mm. **Parts in hand:** 2× AOM-5024L-HD-R (one spare), a **UGREEN USB-to-3.5mm TRRS adapter** (24bit/96k — plug-in power is probably inherent, since a TRRS headset jack must bias the electret mics headsets use, the same part class as the AOM-5024L; ⚠️ but **it needs a TRRS plug, not TRS** — a TRS sleeve bridges Ring 2 and Sleeve and shorts the mic to ground, failing silently — and the mic path bandwidth is unspecified and worth measuring, since headset inputs are voice-optimised and BirdNET needs clean response past 8kHz), and an AudioMoth USB mic with its purpose-made case, which has an open port at the element and therefore **suits** the Phase 5 rule rather than conflicting with it. |
 | 21 | 2026-09-14 | **The camera node's config is now in the repo** (`camera-node/`), after a failure that took four hours to diagnose and would have taken ten minutes if it had been. The Pi appeared not to boot — solid green LED, then an uncountable flicker, no SSH. ⚠️ **It was booting fine.** cloud-init ran to completion twice with zero module failures; the flicker was ordinary disk activity, not an error code, and error codes are slow and deliberate with a pause before repeating. What had failed was networking: `/etc/NetworkManager/system-connections/` **emptied** and both `/etc/netplan/90-NM-*.yaml` **truncated to 0 bytes**, all at 2026-09-10 13:01 — eleven minutes after the last good SSH session. Not cloud-init (no log activity then), not apt (zero dpkg entries that day), not the SSD (enumerated clean, filesystem intact, 4% full). Cause undetermined; it coincided with the camera being physically removed. **Recovery method worth reusing:** pull the USB SSD, mount it on the workstation **read-only with `norecovery`** via `udisksctl` (unprivileged, no writes), recover config first, diagnose second. **Ethernet restored it with no configuration at all** — `/lib/netplan/00-network-manager-all.yaml` survived because it is in `/lib` not `/etc`, and NetworkManager auto-generates a wired profile on carrier. **Decision: the node is wired.** That is the Phase 2 design rather than a fallback, since the locked PoE+ topology means a deployed node has an Ethernet cable by definition; it also gives 0.29ms latency and reopens the raw-video option that wifi's ~100 Mbps ceiling had ruled out. ⚠️ **No wifi profile now exists** — restoring it needs `nmcli device wifi connect` with credentials still present in `/boot/firmware/network-config`, and Phase 6 will need it when nodes become relocatable. Note the node's address changed from .133 to .131 when it moved to Ethernet; DHCP reservations on both MACs would stop the hostname flapping. |
 | 22 | 2026-09-14 | **Bird mic chain tested end to end and it works.** AOM-5024L-HD-R on a TRRS plug into the UGREEN adapter, on the Pi. Enumerates as a real capture device (`KT USB Audio`, KTMicro) — the "DAC" naming was misleading — S16_LE **mono** at 44.1/48kHz, so 48k and mono are both available and both are what this plan wants. **Plug-in power is present** and **CTIA was the right pinout**; neither the OMTP swap nor the mic/ground swap was needed. Ambient floor −32 dB mean, −16 dB peak. **No AGC** — the keys test clipped at 0.0 dB, which an AGC would have prevented, so the path is linear. ⚠️ Capture gain sits at 100% and clipped on a loud close source; birds at 2.5m will be far quieter, but check once deployed. **Bandwidth, the figure on no spec sheet: flat from 4kHz to 20kHz**, rolling off only at Nyquist, with the **peak at 4–8kHz where BirdNET's diagnostic energy sits**. The voice-tuned rolloff Phase 4 feared is simply absent. Method caveat recorded: this measures the whole chain against a keys source, so it does not separate mic response from source spectrum — but content *reaching* 20kHz proves nothing filters it out. ⚠️ **The listening test caught what measurement could not:** clean with no crackle (solder joints sound), slight hum attributable to a room water pump rather than a TRRS ground fault, and faint speech **intelligible underneath loud keys** — which is better validation than any number here, since it demonstrates real dynamic range, no AGC pumping, and enough sensitivity to resolve a quiet distant source against a loud near one. ⚠️ **Remaining Phase 4 work: the mic is on the Pi and BirdNET-Go is on the workstation.** Bridge it as this plan already specifies — audio as its own mono RTSP stream, separate from video, via the MediaMTX already running on the node — then re-enable the source disabled in `3dbc1e2`. |
+| 23 | 2026-09-15 | **Audio runs end to end: mic → Pi → RTSP → BirdNET-Go.** LPCM 48kHz over the node's MediaMTX, `channelMode: left` on the consumer. ⚠️ Three findings worth not rediscovering. **The UGREEN adapter only enumerates with a plug inserted** — pull the TRRS and it vanishes from USB entirely, so a mic unplugged in the field takes the whole audio device with it, the plug must be present at boot, and "measure the adapter alone" is impossible. **`plughw:Audio,0`, by name and via the plug layer** — card numbers shift on reboot, and the raw `hw:` device rejects ffmpeg's period size even though `arecord` accepts it. **Configure BirdNET-Go in its web UI**, which Phase 1 already said and I ignored: `rtsp.streams` takes structs (`name`/`url`/`enabled`/`type`/`transport`/`channelMode`/`gain`/`quietHours`/`models`), not URL strings, and hand-writing one crash-looped the container. The stream reports 2 channels despite `-ac 1`, but L−R measures −91 dB against −39 dB, so it is duplicated mono and `channelMode: left` recovers it exactly. **60 Hz hum investigated and closed at ~−58 dB.** ⚠️ **It is electrical, not acoustic** — muffling the capsule removed 10 dB above 1kHz, proving the test worked, while 60 Hz moved 0.3 dB; a similar-pitched hum is audible in the room from the workstation but is not what is in the recording. Only clipping the exposed L/R leads helped (−2.9 dB); earthing the Pi did nothing; and ⚠️ **an ungrounded static shield bag made it 3 dB worse** — a large floating conductor intercepts the field and, having nowhere to drain it, couples it into the high-impedance mic conductor. Grounding the bag only undid that harm. Not pursued further: BirdNET works above 1kHz where it contributes nothing, a disabled 100 Hz HighPass removes it from analysis, and the deployed mic sits metres from the workstation rather than feet. Shielded cable remains the right fix. ⚠️ Also logged: `processing time exceeded buffer interval` twice on first run — watch it once the camera returns, since Phase 1's load model assumes GPU video and CPU audio do not contend. |
 
 ---
 
@@ -1635,18 +1636,100 @@ any number here — it means real dynamic range, no AGC pumping quiet content do
 enough sensitivity to resolve a quiet distant source against a loud near one. That is
 the actual job.
 
+#### Audio path — the mic streams from the node
+The mic is on the Pi and BirdNET-Go runs on the workstation, so audio crosses as its own
+stream, separate from video, exactly as this phase specifies.
+
+```
+capsule -> TRRS -> UGREEN adapter -> Pi
+        -> ffmpeg (ALSA) -> MediaMTX -> RTSP, LPCM 48kHz
+        -> BirdNET-Go (channelMode: left) -> inference
+```
+
+- [x] **LPCM, not a lossy codec.** 48kHz mono is 768 kbps — trivial on wired ethernet,
+      and nothing is lost before the classifier sees it.
+- [x] ⚠️ **`plughw:Audio,0`, not `hw:3,0`.** By *name*, because ALSA card numbers shift
+      on reboot; via the **plug** layer, because the raw device rejects ffmpeg's period
+      size and fails with `Input/output error` even though `arecord` on `hw:` works.
+- [x] `runOnInitRestart: yes`, so the publisher returns on its own.
+- [x] **The stream reports 2 channels despite `-ac 1`.** Not a fault: L−R measures
+      −91 dB against a −39 dB signal, so it is mono duplicated, and `channelMode: left`
+      in BirdNET-Go recovers the original exactly. Left untouched rather than trading
+      lossless PCM for a lossy codec to save bandwidth that is not short.
+
+⚠️ **The UGREEN adapter only enumerates when a plug is inserted.** With no TRRS plug it
+vanishes from USB entirely — `lsusb` does not list it and there is no capture device.
+Consequences worth knowing before this is sealed in a box on a pole:
+
+- [ ] If the mic is ever unplugged in the field, the audio device **disappears** rather
+      than going silent. MediaMTX's publisher exits and BirdNET-Go logs `rtsp_404`.
+- [ ] The plug must be in place at boot, or there is no capture device at all.
+- [ ] It also makes "measure the adapter's own noise floor with the mic removed"
+      impossible, which is how the hum investigation below ran out of road.
+
+⚠️ **Configure BirdNET-Go through its web UI, not by editing the YAML.** This plan already
+said so in Phase 1; ignoring it cost a crash loop. `realtime.rtsp.streams` takes structs,
+not URL strings, and the real schema is not guessable:
+
+```yaml
+streams:
+  - name: Feeder
+    url: rtsp://wildlife-pi.banklington:8554/birdmic
+    enabled: true
+    type: rtsp
+    transport: tcp
+    channelMode: left      # not "downmix" -- the UI warns against it for stereo sources
+    gain: 0
+    quietHours: {...}
+    models: [birdnet]
+```
+
+Hand-writing `streams: [- rtsp://...]` produced
+`'Realtime.RTSP.streams[0]' expected a map or struct, got "string"` on a restart loop.
+
+#### 60 Hz hum — investigated, electrical, and not worth more effort
+A steady 60 Hz tone sits at about **−58 dB** in the capture. Everything tried, measured:
+
+| Change | 60 Hz |
+|---|---|
+| exposed L/R leads (as built) | −56.8 dB |
+| leads clipped flush to the jacket | −59.7 dB (**−2.9**) |
+| Pi grounded via GPIO to an earthed chassis | −59.9 dB (no change) |
+| capsule inside an **ungrounded** static shield bag | −56.8 dB (**+3.1, worse**) |
+| same bag **grounded** | −58.8 dB (back to baseline) |
+| capsule acoustically muffled | −59.1 dB (no change) |
+
+- [x] ⚠️ **It is electrical, not acoustic.** The muffle test is the one that settled it:
+      muffling removed **10 dB above 1kHz** — proving the muffle worked — while 60 Hz
+      moved 0.3 dB. A similar-pitched hum *is* audible in the room from the workstation,
+      but that is not what is in the recording.
+- [x] **An ungrounded shield is worse than none.** The bag's metallised layer is a large
+      floating conductor: it intercepts the field efficiently and, having nowhere to
+      drain it, couples it into the high-impedance mic conductor inside. Grounding it
+      only undid that harm; it did not go below baseline. This also explains why cupping
+      a hand over the leads helped — a body intercepts *and* has somewhere to send it.
+- [x] Earthing the Pi changed nothing, so a floating reference is not the mechanism
+      either — or the bond never reached earth, which cannot now be distinguished.
+- [ ] **Not worth pursuing further.** BirdNET works above 1kHz where this contributes
+      nothing; the equalizer's 100 Hz HighPass (currently disabled) removes it from
+      analysis entirely if wanted; and the deployed mic sits on a mast metres from the
+      workstation rather than feet. The plan's **shielded mic cable** remains the right
+      fix, and matters more outdoors — a standoff arm several feet from a switching buck
+      converter in a sealed box.
+
 #### Remaining Phase 4 work
-- [ ] ⚠️ **The mic is on the Pi; BirdNET-Go runs on the workstation.** Its audio source
-      is still disabled from `3dbc1e2`, when the workstation had no capture hardware at
-      all. Bridge it the way this plan already specifies: **publish audio as its own
-      mono RTSP stream, separate from video.** MediaMTX is already running on the node.
-- [ ] Then re-enable the BirdNET-Go source, pointing at that stream rather than a local
-      sound card.
-
-
-> Note: this windscreen advice is **bird-only**. See Phase 5 for why it inverts.
-
----
+- [x] **Audio bridged and running end to end (2026-09-15).** BirdNET-Go is pulling the
+      stream and analysing; `analysis.log` shows live processing.
+- [ ] ⚠️ **Watch `processing time exceeded buffer interval`.** It appeared twice on the
+      first run, meaning inference fell behind real time. Harmless if occasional, but
+      the load model in Phase 1 assumes GPU does video and CPU does audio without
+      contending — if this becomes constant once the camera is back and detecting, that
+      assumption needs revisiting rather than ignoring.
+- [ ] **Shielded mic cable**, per the capsule notes above. The remaining 60 Hz is not
+      worth chasing on the bench, but the deployment puts the mic on a standoff arm
+      several feet from a switching buck converter inside a sealed box.
+- [ ] Windscreen, fur cover and the soft non-resonant mount are still outstanding — see
+      the capsule checklist at the top of this phase.
 
 ## Phase 5 — Ultrasonic channel: bats + orthoptera
 
