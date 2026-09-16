@@ -81,3 +81,13 @@ mosquitto/data/
 # --- Local overrides ------------------------------------------------------
 .env
 docker-compose.override.yml
+
+# Camera-mount CAD development and generated print archive
+__pycache__/
+*.pyc
+.venv/
+.DS_Store
+outputs/*.zip
+
+# Generated CAD illustration, not a camera capture
+!outputs/camera-mount/docs/assembly-overview.png

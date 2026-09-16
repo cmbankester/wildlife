@@ -10,8 +10,8 @@ All dimensions are millimetres. X points toward the lens/window, Y across the
 shelf, Z upward. Rail: 200 × 65, base 4 thick; male dovetail 24 wide at Z4 and
 40 wide at Z12. Its flanks are 45 degrees. Female flank clearance is 0.30 normal
 to each flank, and roof clearance is 0.30 vertical. Carriage bearing length 48;
-two 8-long end stops leave 136 travel. Camera screw at local X12. Deck Z20.3,
-camera seating pad Z22.3. Elevated arm ends at local X90 and passes over stops.
+two 8-long end stops leave 136 travel. Camera screw at local X12. Deck Z23.3,
+camera seating pad Z25.3. Elevated arm ends at local X90 and passes over stops.
 
 Two longitudinal saddle slots span X32–72, at Y±14. The U cradle contact plane
 is 10.3 forward of the saddle foot fasteners: 30.3–70.3 ahead of the camera
@@ -26,8 +26,8 @@ glass position, ribbon slack, and access for the side knob require physical chec
 ## Considered construction choices
 
 - Selected: one-piece male rail and female carriage; robust capture with ordinary
-  fasteners. Requires a sliding-fit coupon and support under the inverted rail
-  overhang if printed upright.
+  fasteners. Requires a sliding-fit coupon; 45-degree flanks print without
+  full-length supports in the supplied orientations.
 - Two bolted rails: more screws and alignment work without helping this shelf.
 - Flexure lock: fewer parts, but repeated bending/creep is less predictable than
   the selected separate pressure shoe driven by an M4 screw.
