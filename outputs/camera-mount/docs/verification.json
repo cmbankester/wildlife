@@ -159,6 +159,7 @@
     "camera_head_to_rail_clearance_mm": 4.0,
     "foot_head_to_rail_clearance_mm": 3.8000000000000007,
     "foot_head_to_stop_clearance_mm": 0.8000000000000007,
+    "lock_side": "front (-Y), toward enclosure opening",
     "lock_stroke_to_contact_mm": 0.8743,
     "lock_knob_to_boss_at_contact_mm": 1.6257,
     "locked_pose_no_interference": true,

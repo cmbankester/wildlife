@@ -1,5 +1,10 @@
 # Print and assemble
 
+**Front-lock revision, 2026-09-16:** the knob faces the accessible shelf front.
+Use the revised **carriage**, **pressure_shoe** and **fit_carriage** STLs.
+Previously printed rail, knob, pad, stops and saddle parts can be reused.
+No additional slicer mirroring is needed.
+
 **200 × 65 mm rail • 136 mm mechanical travel • 40 mm saddle position range
 • 14 mm saddle height range.** The camera seats 25.3 mm above the shelf.
 

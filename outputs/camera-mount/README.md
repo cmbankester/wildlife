@@ -4,6 +4,13 @@ Printable prototype for the **70 × 210 mm pine shelf**, using the existing
 **1/4″-20 tripod socket** and an adjustable, lightly padded lens support.
 All CAD/STL dimensions are **millimetres**. **Print the fit coupons first.**
 
+**Front-lock revision (2026-09-16):** the knob now faces the accessible front
+edge of the shelf / enclosure opening (-Y), with the lens still pointing along
++X. Replace any previously printed **carriage** and **pressure shoe** with this
+revision; the **fit_carriage** coupon is updated too. The knob, rail, camera
+pad, stops and saddle parts are unchanged and can be reused. These STLs already
+include the correction: **do not mirror them again in the slicer**.
+
 ![Assembly overview](docs/assembly-overview.png)
 
 ## Files

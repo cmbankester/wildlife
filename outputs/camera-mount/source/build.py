@@ -79,6 +79,9 @@ def hardware(p, travel, sx, rise):
             h[f"stop_nut_{i}_{j}"] = hex_prism(5.5, 2.4, (xx, y, 0.1)).cut(
                 cylinder(1.51, 3, (xx, y, 0))
             )
+    # The lock hardware follows the front-facing carriage/shoe reflection.
+    for name in ("lock_screw", "lock_nut"):
+        h[name] = h[name].mirror("XZ")
     return h
 
 
@@ -178,19 +181,26 @@ def main():
     shift = p.flank_clearance * math.sqrt(2)
     advance = 0.45 + shift
     locked = assembly_parts(p, parts)
+    assert locked["lock_knob"].BoundingBox().ymax < -35, (
+        "Knob must face the accessible shelf front (-Y)"
+    )
+    assert locked["pressure_shoe"].BoundingBox().ymax < 0, (
+        "Shoe must follow the front-facing lock"
+    )
+    report["checks"]["lock_side"] = "front (-Y), toward enclosure opening"
     for name in locked:
         if name not in ("rail", "rear_stop", "front_stop"):
-            locked[name] = locked[name].translate((0, shift, 0))
+            locked[name] = locked[name].translate((0, -shift, 0))
     for name in ("pressure_shoe", "lock_knob"):
-        locked[name] = locked[name].translate((0, -advance, 0))
+        locked[name] = locked[name].translate((0, advance, 0))
     for (an, ash), (bn, bsh) in itertools.combinations(locked.items(), 2):
         v = overlap(ash, bsh)
         assert v < 0.001, f"Locked-position interference: {an}/{bn}: {v}"
     # Contact exists at the two clamping interfaces; another 0.05 mm cannot pass.
     assert (
-        overlap(locked["pressure_shoe"].translate((0, -0.05, 0)), locked["rail"]) > 0.01
+        overlap(locked["pressure_shoe"].translate((0, 0.05, 0)), locked["rail"]) > 0.01
     )
-    assert overlap(locked["carriage"].translate((0, 0.05, 0)), locked["rail"]) > 0.01
+    assert overlap(locked["carriage"].translate((0, -0.05, 0)), locked["rail"]) > 0.01
     report["checks"]["lock_stroke_to_contact_mm"] = round(advance, 4)
     report["checks"]["lock_knob_to_boss_at_contact_mm"] = round(35.5 - advance - 33, 4)
     report["checks"]["locked_pose_no_interference"] = True
@@ -310,7 +320,7 @@ def overview(p, parts):
     finish_solids(ax)
     ax.set(xlim=(-10, 240), ylim=(-45, 50), zlim=(-6, 80))
     ax.set_box_aspect((250, 95, 86))
-    ax.view_init(elev=30, azim=58)
+    ax.view_init(elev=30, azim=-58)
     ax.set_axis_off()
     fig.text(
         0.045,
@@ -346,7 +356,7 @@ def overview(p, parts):
     fig.text(
         0.76,
         0.35,
-        "Hardware\n1/4-20 camera screw\nM4 side lock + shoe\nM3 saddle and stops",
+        "Hardware\n1/4-20 camera screw\nFront-facing M4 lock + shoe\nM3 saddle and stops",
         fontsize=13,
         linespacing=1.7,
         color="#173047",

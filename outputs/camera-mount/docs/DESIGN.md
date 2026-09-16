@@ -6,8 +6,11 @@ saddle. The supplied photo establishes orientation, not measurement scale.
 
 ## Geometry
 
-All dimensions are millimetres. X points toward the lens/window, Y across the
-shelf, Z upward. Rail: 200 × 65, base 4 thick; male dovetail 24 wide at Z4 and
+All dimensions are millimetres. X points toward the lens/window, -Y toward the
+accessible front edge / enclosure opening, and Z upward. The 2026-09-16 revision
+reflects the carriage lock features and pressure shoe across the XZ plane,
+placing the knob at the front. Camera/lens direction, rail and saddle are
+unchanged. Rail: 200 × 65, base 4 thick; male dovetail 24 wide at Z4 and
 40 wide at Z12. Its flanks are 45 degrees. Female flank clearance is 0.30 normal
 to each flank, and roof clearance is 0.30 vertical. Carriage bearing length 48;
 two 8-long end stops leave 136 travel. Camera screw at local X12. Deck Z23.3,

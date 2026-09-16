@@ -1,6 +1,6 @@
 """Parametric Pi HQ camera mount. Units: mm. Run build.py to export and check.
 
-X = travel/lens axis; Y = shelf width; Z = height above shelf. Models here
+X = travel/lens axis; -Y = accessible shelf front; Z = height above shelf. Models here
 retain assembly coordinates. Print-oriented exports are generated separately.
 """
 
@@ -259,7 +259,9 @@ def carriage(p):
                 d - p.arm_thickness - (p.rail_top + p.roof_clearance),
             )
         )
-    return r.clean()
+    # Reflect only the lock-bearing carriage across the rail width. The camera
+    # and saddle remain aligned along +X; the knob now faces the enclosure opening.
+    return r.mirror("XZ").clean()
 
 
 def shoe(p):
@@ -273,7 +275,7 @@ def shoe(p):
         ],
         33,
         6,
-    )
+    ).mirror("XZ")
 
 
 def knob(p):
@@ -385,7 +387,8 @@ def assembly_parts(p, parts, travel=68, saddle_x=52, rise=7):
         "pressure_shoe": parts["pressure_shoe"].translate((x, 0, 0)),
         "lock_knob": parts["lock_knob"]
         .rotate((0, 0, 0), (1, 0, 0), -90)
-        .translate((x + 36, 35.5, 9)),
+        .translate((x + 36, 35.5, 9))
+        .mirror("XZ"),
         "saddle_foot": parts["saddle_foot"].translate((x + saddle_x, 0, p.deck_top)),
         "saddle_cradle": parts["saddle_cradle"].translate((x + saddle_x, 0, cradle_z)),
         "soft_liner": parts["soft_liner"].translate((x + saddle_x, 0, cradle_z)),
