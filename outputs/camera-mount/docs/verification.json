@@ -1,0 +1,179 @@
+{
+  "units": "mm",
+  "parts": {
+    "rail": {
+      "valid_solid": true,
+      "connected_solids": 1,
+      "watertight_stl": true,
+      "volume_mm3": 102458.79,
+      "print_bounds_mm": [
+        200.0,
+        65.0,
+        12.0
+      ],
+      "triangles": 9004
+    },
+    "carriage": {
+      "valid_solid": true,
+      "connected_solids": 1,
+      "watertight_stl": true,
+      "volume_mm3": 47052.98,
+      "print_bounds_mm": [
+        90.0,
+        63.0,
+        19.0
+      ],
+      "triangles": 4604
+    },
+    "camera_pad": {
+      "valid_solid": true,
+      "connected_solids": 1,
+      "watertight_stl": true,
+      "volume_mm3": 567.37,
+      "print_bounds_mm": [
+        16.0,
+        20.0,
+        2.0
+      ],
+      "triangles": 648
+    },
+    "end_stop": {
+      "valid_solid": true,
+      "connected_solids": 1,
+      "watertight_stl": true,
+      "volume_mm3": 2752.53,
+      "print_bounds_mm": [
+        8.0,
+        60.0,
+        11.0
+      ],
+      "triangles": 2564
+    },
+    "pressure_shoe": {
+      "valid_solid": true,
+      "connected_solids": 1,
+      "watertight_stl": true,
+      "volume_mm3": 166.8,
+      "print_bounds_mm": [
+        4.0,
+        8.95,
+        6.0
+      ],
+      "triangles": 12
+    },
+    "lock_knob": {
+      "valid_solid": true,
+      "connected_solids": 1,
+      "watertight_stl": true,
+      "volume_mm3": 1353.59,
+      "print_bounds_mm": [
+        16.699,
+        16.699,
+        8.0
+      ],
+      "triangles": 3376
+    },
+    "saddle_foot": {
+      "valid_solid": true,
+      "connected_solids": 1,
+      "watertight_stl": true,
+      "volume_mm3": 8676.78,
+      "print_bounds_mm": [
+        24.0,
+        58.0,
+        32.0
+      ],
+      "triangles": 2652
+    },
+    "saddle_cradle": {
+      "valid_solid": true,
+      "connected_solids": 1,
+      "watertight_stl": true,
+      "volume_mm3": 5859.9,
+      "print_bounds_mm": [
+        24.0,
+        58.0,
+        8.0
+      ],
+      "triangles": 1652
+    },
+    "soft_liner": {
+      "valid_solid": true,
+      "connected_solids": 1,
+      "watertight_stl": true,
+      "volume_mm3": 326.73,
+      "print_bounds_mm": [
+        10.496,
+        34.641,
+        8.0
+      ],
+      "triangles": 428
+    },
+    "fit_rail": {
+      "valid_solid": true,
+      "connected_solids": 1,
+      "watertight_stl": true,
+      "volume_mm3": 14077.4,
+      "print_bounds_mm": [
+        28.0,
+        65.0,
+        12.0
+      ],
+      "triangles": 4516
+    },
+    "fit_carriage": {
+      "valid_solid": true,
+      "connected_solids": 1,
+      "watertight_stl": true,
+      "volume_mm3": 15272.16,
+      "print_bounds_mm": [
+        20.0,
+        63.0,
+        19.0
+      ],
+      "triangles": 2664
+    },
+    "camera_screw_coupon": {
+      "valid_solid": true,
+      "connected_solids": 1,
+      "watertight_stl": true,
+      "volume_mm3": 3391.61,
+      "print_bounds_mm": [
+        19.0,
+        22.0,
+        11.0
+      ],
+      "triangles": 1288
+    }
+  },
+  "checks": {
+    "motion_poses": 27,
+    "solid_pair_checks": 7425,
+    "collisions": [],
+    "max_printed_part_overlap_mm3": 0.0,
+    "travel_mm": 136.0,
+    "flank_clearance_normal_mm": 0.3,
+    "roof_clearance_mm": 0.3,
+    "arm_to_stop_vertical_clearance_mm": 4.300000000000001,
+    "camera_screw_tip_above_pad_mm": 3.525000000000002,
+    "camera_head_to_rail_clearance_mm": 4.0,
+    "foot_head_to_rail_clearance_mm": 3.8000000000000007,
+    "foot_head_to_stop_clearance_mm": 0.8000000000000007,
+    "lock_side": "front (-Y), toward enclosure opening",
+    "lock_stroke_to_contact_mm": 0.8743,
+    "lock_knob_to_boss_at_contact_mm": 1.6257,
+    "locked_pose_no_interference": true,
+    "shelf_margins_each_end_side_mm": [
+      5.0,
+      2.5
+    ],
+    "rear_stop_overlap_at_0.5mm_overtravel_mm3": 187.206,
+    "front_stop_overlap_at_0.5mm_overtravel_mm3": 166.686,
+    "capture_overlap_at_1mm_lift_mm3": 353.974
+  },
+  "limitations": [
+    "No physical printing, load test, creep test, or camera/box measurements performed.",
+    "Camera and lens shown in diagrams are illustrative clearance envelopes, not measured replicas.",
+    "Check thread depth, screw head, seating pad/PCB, ribbon routing, lens support band and enclosure sweep before full print."
+  ]
+}
