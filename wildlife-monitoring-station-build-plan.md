@@ -1,7 +1,7 @@
 # Backyard Wildlife Monitoring Station — Build Plan
 
-**Status:** 🔨 Phase 3 — enclosure build started — Pass 23
-**Last updated:** 2026-09-15
+**Status:** 🔨 Phase 3 — enclosure build started — Pass 24
+**Last updated:** 2026-09-17
 
 A local-inference camera + acoustic station for bird ID (image + sound), with a
 parallel ultrasonic channel for bats and orthoptera. No third-party inference.
@@ -35,6 +35,8 @@ parallel ultrasonic channel for bats and orthoptera. No third-party inference.
 | 21 | 2026-09-14 | **The camera node's config is now in the repo** (`camera-node/`), after a failure that took four hours to diagnose and would have taken ten minutes if it had been. The Pi appeared not to boot — solid green LED, then an uncountable flicker, no SSH. ⚠️ **It was booting fine.** cloud-init ran to completion twice with zero module failures; the flicker was ordinary disk activity, not an error code, and error codes are slow and deliberate with a pause before repeating. What had failed was networking: `/etc/NetworkManager/system-connections/` **emptied** and both `/etc/netplan/90-NM-*.yaml` **truncated to 0 bytes**, all at 2026-09-10 13:01 — eleven minutes after the last good SSH session. Not cloud-init (no log activity then), not apt (zero dpkg entries that day), not the SSD (enumerated clean, filesystem intact, 4% full). Cause undetermined; it coincided with the camera being physically removed. **Recovery method worth reusing:** pull the USB SSD, mount it on the workstation **read-only with `norecovery`** via `udisksctl` (unprivileged, no writes), recover config first, diagnose second. **Ethernet restored it with no configuration at all** — `/lib/netplan/00-network-manager-all.yaml` survived because it is in `/lib` not `/etc`, and NetworkManager auto-generates a wired profile on carrier. **Decision: the node is wired.** That is the Phase 2 design rather than a fallback, since the locked PoE+ topology means a deployed node has an Ethernet cable by definition; it also gives 0.29ms latency and reopens the raw-video option that wifi's ~100 Mbps ceiling had ruled out. ⚠️ **No wifi profile now exists** — restoring it needs `nmcli device wifi connect` with credentials still present in `/boot/firmware/network-config`, and Phase 6 will need it when nodes become relocatable. Note the node's address changed from .133 to .131 when it moved to Ethernet; DHCP reservations on both MACs would stop the hostname flapping. |
 | 22 | 2026-09-14 | **Bird mic chain tested end to end and it works.** AOM-5024L-HD-R on a TRRS plug into the UGREEN adapter, on the Pi. Enumerates as a real capture device (`KT USB Audio`, KTMicro) — the "DAC" naming was misleading — S16_LE **mono** at 44.1/48kHz, so 48k and mono are both available and both are what this plan wants. **Plug-in power is present** and **CTIA was the right pinout**; neither the OMTP swap nor the mic/ground swap was needed. Ambient floor −32 dB mean, −16 dB peak. **No AGC** — the keys test clipped at 0.0 dB, which an AGC would have prevented, so the path is linear. ⚠️ Capture gain sits at 100% and clipped on a loud close source; birds at 2.5m will be far quieter, but check once deployed. **Bandwidth, the figure on no spec sheet: flat from 4kHz to 20kHz**, rolling off only at Nyquist, with the **peak at 4–8kHz where BirdNET's diagnostic energy sits**. The voice-tuned rolloff Phase 4 feared is simply absent. Method caveat recorded: this measures the whole chain against a keys source, so it does not separate mic response from source spectrum — but content *reaching* 20kHz proves nothing filters it out. ⚠️ **The listening test caught what measurement could not:** clean with no crackle (solder joints sound), slight hum attributable to a room water pump rather than a TRRS ground fault, and faint speech **intelligible underneath loud keys** — which is better validation than any number here, since it demonstrates real dynamic range, no AGC pumping, and enough sensitivity to resolve a quiet distant source against a loud near one. ⚠️ **Remaining Phase 4 work: the mic is on the Pi and BirdNET-Go is on the workstation.** Bridge it as this plan already specifies — audio as its own mono RTSP stream, separate from video, via the MediaMTX already running on the node — then re-enable the source disabled in `3dbc1e2`. |
 | 23 | 2026-09-15 | **Audio runs end to end: mic → Pi → RTSP → BirdNET-Go.** LPCM 48kHz over the node's MediaMTX, `channelMode: left` on the consumer. ⚠️ Three findings worth not rediscovering. **The UGREEN adapter only enumerates with a plug inserted** — pull the TRRS and it vanishes from USB entirely, so a mic unplugged in the field takes the whole audio device with it, the plug must be present at boot, and "measure the adapter alone" is impossible. **`plughw:Audio,0`, by name and via the plug layer** — card numbers shift on reboot, and the raw `hw:` device rejects ffmpeg's period size even though `arecord` accepts it. **Configure BirdNET-Go in its web UI**, which Phase 1 already said and I ignored: `rtsp.streams` takes structs (`name`/`url`/`enabled`/`type`/`transport`/`channelMode`/`gain`/`quietHours`/`models`), not URL strings, and hand-writing one crash-looped the container. The stream reports 2 channels despite `-ac 1`, but L−R measures −91 dB against −39 dB, so it is duplicated mono and `channelMode: left` recovers it exactly. **60 Hz hum investigated and closed at ~−58 dB.** ⚠️ **It is electrical, not acoustic** — muffling the capsule removed 10 dB above 1kHz, proving the test worked, while 60 Hz moved 0.3 dB; a similar-pitched hum is audible in the room from the workstation but is not what is in the recording. Only clipping the exposed L/R leads helped (−2.9 dB); earthing the Pi did nothing; and ⚠️ **an ungrounded static shield bag made it 3 dB worse** — a large floating conductor intercepts the field and, having nowhere to drain it, couples it into the high-impedance mic conductor. Grounding the bag only undid that harm. Not pursued further: BirdNET works above 1kHz where it contributes nothing, a disabled 100 Hz HighPass removes it from analysis, and the deployed mic sits metres from the workstation rather than feet. Shielded cable remains the right fix. ⚠️ Also logged: `processing time exceeded buffer interval` twice on first run — watch it once the camera returns, since Phase 1's load model assumes GPU video and CPU audio do not contend. |
+
+| 24 | 2026-09-17 | **Camera mount hardware in hand, and the barrel saddle is removed from the plan.** The shelf is **0.75" (19.05mm) stock with a ~76mm (3") slot** routed along the optical axis, so the camera's fore/aft position is adjustable rather than drilled once — which turns the 25mm lens upgrade into a slide instead of a second hole in a shelf built around a 34.9mm aperture. ⚠️ **The saddle's stated job does not exist.** At ~135g with the centre of mass ~29mm ahead of the screw, the nose-down moment about the camera body's front edge is ~0.013 N·m and needs **~0.7N of screw tension**, against the kilonewton-scale preload a hand-tight ¼"-20 develops — three orders of magnitude of margin, and the shelf already carries most of the weight in compression. **Anti-yaw hardware is deferred, not replaced:** a fence or saddle would fight a possible motorised stage for distance and yaw, and the yaw joint stays adjustable through one screw with vignetting directly visible in the image as the check. The 1.68° budget stands. ⚠️ **Screw length is set by the shelf, and 1.5" bottoms out** — 38.1mm of thread entering a ~5mm tripod bush, which reads as "loose no matter how tight" and can push the bush out of the housing. **1" with exactly one washer** puts engagement at 4.75mm, so the washer is dimensional rather than optional. ⚠️ **The 0.75" shelf drops the bracket arm to ~15mm off the floor** (34mm surface − 19.05mm stock) — confirm the backboard reaches that low and that the arm clears the bottom face and the glands. Pi fasteners: a **100pc brass M2.5 kit**, using 11+6 M/F standoffs, nuts and M2.5×5 screws; brass over nylon because the box runs 60–70°C where nylon creeps under load. ⚠️ Check continuity between a Pi corner hole and a header GND pin before metal standoffs touch anything conductive — an accidental chassis bond is expensive next to a high-impedance mic input. |
 
 ---
 
@@ -1413,17 +1415,16 @@ Lateral margin is only **1.86mm** — half of (34.9mm hole − 31.2mm required).
 yaw consumes all of it**, and well before that the axis stops being perpendicular to
 the pane, which reintroduces the ghosting the good glass was chosen to avoid.
 
-- [ ] **Add anti-rotation.** Two locating pins, or a small upstand on the bracket
-      bearing against two adjacent edges of the camera body. The screw then supplies
-      clamping force and the pins supply location — each doing what it is good at.
-      Alternatively use the HQ camera's four M2.5 board holes, at the cost of more
-      precise hole placement.
-- [ ] ⚠️ **Support the lens barrel, not just the camera body.** The lens is the heavy
-      part and *all* of it is forward of the mount — 63.5mm of overhang trying to pitch
-      the camera nose-down through one screw. A saddle or V-block under the 38mm barrel
-      near the front takes that moment off the screw and helps hold the assembly
-      square. Give it a felt or rubber pad rather than a hard clamp, so it supports
-      without fighting the tripod screw for position.
+- [x] **DECIDED 2026-09-17 — set yaw by eye, add no anti-rotation hardware.** Pins, a
+      fence along the shelf, or an upstand bearing on the camera body would all work,
+      and all of them fix the camera in one orientation. That forecloses a **motorised
+      stage for distance and yaw**, which is a live possibility now that the slot makes
+      the joint adjustable. The failure mode also announces itself: vignetting appears
+      in the image corners, so the check is free and the correction is one loosened
+      screw. The 1.68° budget in the preceding table still applies — it is what "by eye"
+      has to hit, and across the 38mm camera body it is 1.1mm.
+- [ ] Revisit if the mount ever carries the 25mm lens. More overhang and more mass
+      shrink the angular budget while making the joint harder to hold by friction.
 - [ ] The lens-to-adapter-to-camera joint is separately locked and is **not** this
       problem. This is the camera-to-bracket joint.
 
@@ -1476,12 +1477,66 @@ screw          = 64.5 mm back from the pane's inner face
       which is what it is good at. **Pi placement follows the lens**, not the reverse —
       the CSI ribbon reaches most of the backboard, so it is not a constraint
       (confirmed 2026-09-10).
-- [ ] ⚠️ **A barrel saddle must be packed up 12mm** from the shelf to reach the barrel.
-      Give it a felt or rubber pad so it supports without fighting the tripod screw for
-      position. It removes the nose-down pitching moment from the 63.5mm of lens
-      overhang and helps hold the assembly square.
-- [ ] Anti-yaw pins are still required — see below. The shelf fixes gravity, not
-      rotation about the screw.
+- [x] **No barrel saddle.** See "The tripod screw is one fastener — it yaws" for the
+      numbers; the pitching moment it was specified to remove is ~0.7N against a
+      kilonewton-scale preload.
+
+#### Shelf and fasteners — IN HAND 2026-09-17
+The shelf is **0.75" (19.05mm) stock** with a **~76mm (3") slot** routed along the
+optical axis, so the camera bolts straight to it and slides fore/aft.
+
+**What the slot buys.** The 64.5mm screw-to-pane figure stops being a one-shot drilled
+hole. Bead thickness is only known after the pane is bedded, and the 25mm lens moves the
+screw back by its own extra length — both are now a slide rather than a second hole in a
+shelf already built around a 34.9mm aperture. It also leaves yaw free, which is what
+makes setting it by eye recoverable.
+
+⚠️ **The slot clamps, it does not locate.** A single screw on a slot can creep, and 1mm
+ahead of the lens lip is bedded quartz. Fit a stop at the forward end of travel, or set
+the forward limit so the lip cannot reach the pane even at the end of the slot.
+
+**¼"-20 screw length — 1", not 1.5".** The stack is washer + shelf + engagement, and a
+tripod bush is shallow:
+
+```
+1.5" screw  38.1 - 1.6 - 19.05 = 17.4 mm of thread into a ~5mm bush   -> bottoms out
+1.0" screw  25.4 - 1.6 - 19.05 =  4.75 mm engagement                  -> correct
+```
+
+⚠️ A bottomed screw reads as **"loose no matter how tight"** and can push the bush out
+of the camera housing. The washer sets the engagement depth, so it is dimensional rather
+than optional; a second washer drops engagement to 3.15mm, which still holds but is
+thinner than it needs to be. Measure the bush depth before final torque. Put the washer
+under the head so it bridges the slot, and nothing between the camera and the shelf —
+that flat contact is what carries the weight.
+
+**Shelf height, with 19.05mm of stock under it:**
+
+```
+optical axis        65.0 mm   (target)
+shelf surface       34.0 mm   (axis - 31)
+bracket arm         14.95 mm  (surface - 19.05)
+```
+
+⚠️ **Confirm the backboard reaches 15mm off the floor**, and that the bracket arm and
+its fasteners clear the bottom face where the glands are. The 0.75" stock spends 19mm of
+the height budget that a thin bracket would not.
+
+**Pi, SSD and buck converter: brass M2.5.** A 100pc brass kit is in hand. The scheme that
+uses it: M2.5×11+6 M/F standoff, stud through the backboard, M2.5 nut behind; board on
+the 11mm body, M2.5×5 screw into the female end. The 5mm screws are long enough — 1.4mm
+of board leaves 3.6mm of engagement, eight threads at 0.45mm pitch — and the 11mm height
+leaves convection space under the board, which matters in a box with no air exchange.
+**Brass, not nylon:** nylon creeps under load at the 60–70°C this plan already assumes
+inside the box.
+
+- [ ] ⚠️ **Meter the Pi's corner holes to a header GND pin before using metal
+      standoffs** into anything conductive. On several Pi models they are ground-tied,
+      so a metal standoff bonds the Pi's ground to whatever it lands on — which may be
+      wanted with a PoE splitter and a buck converter sharing the box, or may hand a
+      ground loop to a high-impedance mic input. Phase 4 already spent a pass on 60 Hz.
+- [ ] The 6mm stud suits a backboard up to ~3.5mm, leaving room for the nut. If the grid
+      board is thicker, use the M2.5×11 F/F standoffs with a longer screw from behind.
 
 *This supersedes an earlier sub-plate proposal*, which assumed a front-face window
 ~100mm out from the backboard and was designed around a cantilever the side-wall
@@ -1932,10 +1987,12 @@ was wrong for 0.17 and the real lever is `alerts`/`detections` retention.
 | 100×100×1mm fused quartz, DSP | Camera window — **in hand** | 3 | ☑ decided |
 | Neutral-cure silicone sealant | Bed the quartz compliantly — ⚠️ **never epoxy**, CTE mismatch | 3 | ☐ |
 | Setting blocks / ~1mm shims | Control bead thickness — ⚠️ wall is wavy, do not squeeze | 3 | ☐ |
-| L-bracket shelf (Al or steel) | Camera sits on it, screw up — ⚠️ never bolted flat to the board | 3 | ☐ |
+| Shelf, 0.75" stock, slotted | Camera sits on it, screw up — **in hand**, ~76mm slot routed | 3 | ☑ |
+| Shelf brackets | Carry the shelf off the backboard — **in hand**; ⚠️ arm lands ~15mm off the floor, size unrecorded | 3 | ☑ |
+| ¼"-20 screws, washers, nuts | Camera to shelf — **in hand**; ⚠️ use the **1"** with one washer, the 1.5" bottoms out | 3 | ☑ |
+| Brass M2.5 kit, 100pc | Pi, SSD, buck converter to the backboard — **in hand**; 11+6 standoffs, nuts, M2.5×5 screws | 3 | ☑ |
 | Standoffs / shim stock | Fine-tune shelf height to put the axis at 31mm | 3 | ☐ |
-| Locating pins or bracket upstand | ⚠️ Anti-yaw — 1.68° vignettes; screw clamps, pins locate | 3 | ☐ |
-| Barrel saddle + soft pad | ⚠️ Pack up **12mm** from the shelf to reach the barrel | 3 | ☐ |
+| Locating pins or bracket upstand | ⚠️ Anti-yaw — **deferred**, would foreclose a motorised stage; set by eye | 3 | ☐ |
 | Black flocking / felt | Lens barrel + interior — **not optional, uncoated pane** | 3 | ☐ |
 | 1⅜" (34.9mm) hole saw | Window aperture — 31.2mm needed, 3.7mm margin | 3 | ☐ |
 | White vinyl or paint | Cover the clear lid **from outside** (solar load) | 3 | ☐ |
