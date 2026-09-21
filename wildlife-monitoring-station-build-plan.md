@@ -1,7 +1,7 @@
 # Backyard Wildlife Monitoring Station — Build Plan
 
-**Status:** 🔨 Phase 3 — enclosure build started — Pass 24
-**Last updated:** 2026-09-17
+**Status:** 🔨 Phase 3 — enclosure build started — Pass 25
+**Last updated:** 2026-09-21
 
 A local-inference camera + acoustic station for bird ID (image + sound), with a
 parallel ultrasonic channel for bats and orthoptera. No third-party inference.
@@ -37,6 +37,8 @@ parallel ultrasonic channel for bats and orthoptera. No third-party inference.
 | 23 | 2026-09-15 | **Audio runs end to end: mic → Pi → RTSP → BirdNET-Go.** LPCM 48kHz over the node's MediaMTX, `channelMode: left` on the consumer. ⚠️ Three findings worth not rediscovering. **The UGREEN adapter only enumerates with a plug inserted** — pull the TRRS and it vanishes from USB entirely, so a mic unplugged in the field takes the whole audio device with it, the plug must be present at boot, and "measure the adapter alone" is impossible. **`plughw:Audio,0`, by name and via the plug layer** — card numbers shift on reboot, and the raw `hw:` device rejects ffmpeg's period size even though `arecord` accepts it. **Configure BirdNET-Go in its web UI**, which Phase 1 already said and I ignored: `rtsp.streams` takes structs (`name`/`url`/`enabled`/`type`/`transport`/`channelMode`/`gain`/`quietHours`/`models`), not URL strings, and hand-writing one crash-looped the container. The stream reports 2 channels despite `-ac 1`, but L−R measures −91 dB against −39 dB, so it is duplicated mono and `channelMode: left` recovers it exactly. **60 Hz hum investigated and closed at ~−58 dB.** ⚠️ **It is electrical, not acoustic** — muffling the capsule removed 10 dB above 1kHz, proving the test worked, while 60 Hz moved 0.3 dB; a similar-pitched hum is audible in the room from the workstation but is not what is in the recording. Only clipping the exposed L/R leads helped (−2.9 dB); earthing the Pi did nothing; and ⚠️ **an ungrounded static shield bag made it 3 dB worse** — a large floating conductor intercepts the field and, having nowhere to drain it, couples it into the high-impedance mic conductor. Grounding the bag only undid that harm. Not pursued further: BirdNET works above 1kHz where it contributes nothing, a disabled 100 Hz HighPass removes it from analysis, and the deployed mic sits metres from the workstation rather than feet. Shielded cable remains the right fix. ⚠️ Also logged: `processing time exceeded buffer interval` twice on first run — watch it once the camera returns, since Phase 1's load model assumes GPU video and CPU audio do not contend. |
 
 | 24 | 2026-09-17 | **Camera mount hardware in hand, and the barrel saddle is removed from the plan.** The shelf is **0.75" (19.05mm) stock with a ~76mm (3") slot** routed along the optical axis, so the camera's fore/aft position is adjustable rather than drilled once — which turns the 25mm lens upgrade into a slide instead of a second hole in a shelf built around a 34.9mm aperture. ⚠️ **The saddle's stated job does not exist.** At ~135g with the centre of mass ~29mm ahead of the screw, the nose-down moment about the camera body's front edge is ~0.013 N·m and needs **~0.7N of screw tension**, against the kilonewton-scale preload a hand-tight ¼"-20 develops — three orders of magnitude of margin, and the shelf already carries most of the weight in compression. **Anti-yaw hardware is deferred, not replaced:** a fence or saddle would fight a possible motorised stage for distance and yaw, and the yaw joint stays adjustable through one screw with vignetting directly visible in the image as the check. The 1.68° budget stands. ⚠️ **Screw length is set by the shelf, and 1.5" bottoms out** — 38.1mm of thread entering a ~5mm tripod bush, which reads as "loose no matter how tight" and can push the bush out of the housing. **1" with exactly one washer** puts engagement at 4.75mm, so the washer is dimensional rather than optional. ⚠️ **The 0.75" shelf drops the bracket arm to ~15mm off the floor** (34mm surface − 19.05mm stock) — confirm the backboard reaches that low and that the arm clears the bottom face and the glands. Pi fasteners: a **100pc brass M2.5 kit**, using 11+6 M/F standoffs, nuts and M2.5×5 screws; brass over nylon because the box runs 60–70°C where nylon creeps under load. ⚠️ Check continuity between a Pi corner hole and a header GND pin before metal standoffs touch anything conductive — an accidental chassis bond is expensive next to a high-impedance mic input. |
+
+| 25 | 2026-09-21 | **The node is back on the designed power chain and it holds: PoE → surge arrestor → splitter → buck → Pi 4.** `throttled=0x0` before, during and after a sustained 4.2 GB write at **271 MB/s** with the camera streaming, ARM pinned at 1800 MHz throughout, no undervoltage in `dmesg` or `in0_lcrit_alarm`, one clean boot. The SSD matches pass 16's 269 MB/s, so nothing degraded through the splitter and converter. ⚠️ **`0x0` only means the rail never fell below ~4.63V, not that it sits at 5.1V** — a converter set to 4.8V passes this test with no reserve, so a meter at the USB-C under load is still owed. **Gigabit survived the new path** (`1Gbps/Full`, flow control), which is not automatic: many cheap PoE splitters and Ethernet arrestors pass two pairs and force 100 Mbps, and pass 21's claim that going wired reopens raw video depends on this. Camera confirmed genuinely live rather than a stuck stream — luminance 15.3684 / 15.3711 / 15.3681 across three frames, jittering because the AEC rails to maximum gain against a capped lens. ⚠️ **The finding that matters is thermal, and it is a new open question.** 63.7°C mean and 65.2°C peak under load at **22.2°C ambient** is a **41.5°C rise**, entirely passive with no cooling device registered. That puts the ceiling for an unthrottled Pi at about **38°C ambient**, against this plan's own **60–70°C** figure for a sealed box in sun — a 25–30°C gap, so the failure is continuous hard throttling at 85°C rather than a lost margin. A fan is ruled out twice over: no airflow in IP66, and the PoE HAT was rejected partly for having one. That leaves conduction, and ABS runs ~0.17 W/m·K, so the shell is not a radiator without a metal path through the wall — which then conducts solar heat inward and complicates the seal. ⚠️ **The 60–70°C figure has never been measured**, so log the empty box in place before designing cooling against an assumption. Also corrected: the Phase 2 load budget omitted the USB3 SSD entirely, since the table predates pass 16. Audio is down for the expected reason — cable unplugged pending the shielded re-solder, `lsusb` shows no audio device at all, exactly pass 23's adapter behaviour and not a regression. Frigate's hostname resolution failed until 14:41:05 and self-healed when the Pi's DHCP lease returned, which is pass 21's unresolved reservation item resurfacing. Minor and unexplained: the feeder path now advertises `Stream #0:1: Data: none`, harmless while Frigate decodes and records normally. |
 
 ---
 
@@ -845,8 +847,13 @@ Bird box ── active USB extender ──> AudioMoth on bat mast
 | HQ camera | ~1W |
 | USB sound card + electret | ~0.5W |
 | AudioMoth USB mic | ~0.5W |
+| USB3 SSD (boot + root) | 1–4W |
 | Active USB extender | ~0.5W |
-| **Total** | **~8–10W** |
+| **Total** | **~9–14W** |
+
+⚠️ The SSD row was missing until pass 25. This table predates the pass 16 decision to
+boot and root from USB3, and an SSD under sustained write is the largest single swing in
+the budget. PoE+ still covers it with room.
 
 - [ ] **Use 802.3at (PoE+), not 802.3af.** af delivers ~12.95W at the device —
       enough, but only just. USB peripherals draw in bursts and you'll add things.
@@ -861,6 +868,39 @@ Bird box ── active USB extender ──> AudioMoth on bat mast
 
 > Solar conversion (Phase 6) then becomes: unplug the splitter, connect the
 > battery to the same 12V input. Nothing downstream changes.
+
+#### ✅ Chain verified end to end — 2026-09-21
+PoE → surge arrestor → splitter → buck converter → Pi 4, with the camera attached and
+streaming. Loaded with a sustained 4.2 GB write to the SSD while the camera ran:
+
+```
+pre    temp=63.7'C  throttled=0x0
+t+20s  temp=64.7'C  throttled=0x0  clk=1800MHz
+       4.2 GB written, 15.47 s, 271 MB/s
+t+110s temp=65.2'C  throttled=0x0  clk=1800MHz
+post   temp=63.3'C  throttled=0x0
+```
+
+- [x] **No undervoltage and no frequency capping.** `throttled=0x0` throughout,
+      `in0_lcrit_alarm` 0, nothing in `dmesg`, ARM held at 1800 MHz. One clean boot, no
+      restart loop.
+- [x] **The converter is not costing throughput.** 271 MB/s against pass 16's 269 MB/s
+      on the bench supply.
+- [x] **Gigabit survives the arrestor and splitter** — `Link is Up - 1Gbps/Full - flow
+      control rx/tx`. Worth confirming rather than assuming: plenty of cheap splitters
+      and arrestors pass only two pairs and silently force 100 Mbps, which would quietly
+      void pass 21's note that going wired reopens the raw-video option.
+- [ ] ⚠️ **Still owed: a meter on the 5V rail under load.** `throttled=0x0` means the
+      rail never crossed the ~4.63V undervoltage threshold. It does not mean 5.1V. A
+      converter sitting at 4.8V passes every test above with nothing in reserve, and the
+      reserve is the whole point of setting 5.1V.
+- [ ] Verification commands, for the next time this needs checking:
+
+      ```bash
+      vcgencmd get_throttled; vcgencmd measure_temp    # 0x0 is clean
+      cat /sys/class/hwmon/hwmon*/in0_lcrit_alarm      # 1 = undervoltage
+      cat /sys/class/net/eth0/speed                    # expect 1000
+      ```
 
 ### Future option: 25mm
 Not needed now, but the C-mount makes it a ~2-minute, ~$30–250 swap later.
@@ -1576,6 +1616,11 @@ estimate of "just over 100mm" and is superseded by the measurement above.
 - [ ] **Heat.** Pi 4, SSD and buck converter all dump heat into a sealed box, and a hot
       IMX477 is a noisier IMX477. Put the camera as far from those three as the layout
       allows and give the buck converter its own corner.
+- [ ] ⚠️ **Measured in pass 25, and it is bigger than a sensor-noise question.** The
+      Pi runs a 41.5°C rise over ambient, so the box's own interior temperature decides
+      whether the Pi runs at all, not just how noisy the IMX477 is. Arranging the
+      components is necessary and not sufficient. See the thermal entry in "Open
+      questions for the next pass".
 - [ ] **Lock the focus and aperture rings last**, after final focus through the
       installed pane. Both moved repeatedly during pass 18 bench work.
 
@@ -1935,6 +1980,24 @@ deployed system.
 ## Open questions for the next pass
 
 Roughly in the order they'll block progress.
+
+⚠️ **Thermal — can the Pi survive the box at all?** *New in pass 25. It sits ahead of
+the numbered list because it blocks the Phase 3 build already in progress.* Measured
+63.7°C mean and 65.2°C peak under load at 22.2°C ambient: a **41.5°C rise**, passive,
+with no cooling device registered. The Pi 4 soft-throttles at 80°C, so ambient has to
+stay under **~38°C**. This plan assumes **60–70°C** inside a sealed box in sun — a
+25–30°C gap, whose failure mode is continuous hard throttling at 85°C rather than a
+reduced margin.
+
+- A fan is ruled out twice over: an IP66 box has no airflow, and the PoE HAT was
+  rejected in part for having one.
+- Conduction is what remains, and ABS runs ~0.17 W/m·K. The shell is not a radiator
+  without a metal path through the wall, which then conducts solar heat *inward* and
+  has to cross the seal.
+- ⚠️ **Measure before designing.** The 60–70°C figure has never been measured on this
+  box. Log the empty enclosure in place over a full day, shaded and unshaded, before
+  building cooling against an assumption — a sunshade over the box is the untested
+  lever with the most leverage, and it is far cheaper than a thermal bridge.
 
 1. **Full-resolution capture — MJPEG or a ring buffer?** The encoder caps every
    streamed frame at 1920 px/axis, so 2028×1520 cannot leave the node encoded.
