@@ -1,7 +1,7 @@
 # Backyard Wildlife Monitoring Station — Build Plan
 
-**Status:** 🔨 Phase 3 — enclosure build started — Pass 25
-**Last updated:** 2026-09-21
+**Status:** 🔨 Phase 3 — enclosure build started — Pass 26
+**Last updated:** 2026-09-22
 
 A local-inference camera + acoustic station for bird ID (image + sound), with a
 parallel ultrasonic channel for bats and orthoptera. No third-party inference.
@@ -39,6 +39,8 @@ parallel ultrasonic channel for bats and orthoptera. No third-party inference.
 | 24 | 2026-09-17 | **Camera mount hardware in hand, and the barrel saddle is removed from the plan.** The shelf is **0.75" (19.05mm) stock with a ~76mm (3") slot** routed along the optical axis, so the camera's fore/aft position is adjustable rather than drilled once — which turns the 25mm lens upgrade into a slide instead of a second hole in a shelf built around a 34.9mm aperture. ⚠️ **The saddle's stated job does not exist.** At ~135g with the centre of mass ~29mm ahead of the screw, the nose-down moment about the camera body's front edge is ~0.013 N·m and needs **~0.7N of screw tension**, against the kilonewton-scale preload a hand-tight ¼"-20 develops — three orders of magnitude of margin, and the shelf already carries most of the weight in compression. **Anti-yaw hardware is deferred, not replaced:** a fence or saddle would fight a possible motorised stage for distance and yaw, and the yaw joint stays adjustable through one screw with vignetting directly visible in the image as the check. The 1.68° budget stands. ⚠️ **Screw length is set by the shelf, and 1.5" bottoms out** — 38.1mm of thread entering a ~5mm tripod bush, which reads as "loose no matter how tight" and can push the bush out of the housing. **1" with exactly one washer** puts engagement at 4.75mm, so the washer is dimensional rather than optional. ⚠️ **The 0.75" shelf drops the bracket arm to ~15mm off the floor** (34mm surface − 19.05mm stock) — confirm the backboard reaches that low and that the arm clears the bottom face and the glands. Pi fasteners: a **100pc brass M2.5 kit**, using 11+6 M/F standoffs, nuts and M2.5×5 screws; brass over nylon because the box runs 60–70°C where nylon creeps under load. ⚠️ Check continuity between a Pi corner hole and a header GND pin before metal standoffs touch anything conductive — an accidental chassis bond is expensive next to a high-impedance mic input. |
 
 | 25 | 2026-09-21 | **The node is back on the designed power chain and it holds: PoE → surge arrestor → splitter → buck → Pi 4.** `throttled=0x0` before, during and after a sustained 4.2 GB write at **271 MB/s** with the camera streaming, ARM pinned at 1800 MHz throughout, no undervoltage in `dmesg` or `in0_lcrit_alarm`, one clean boot. The SSD matches pass 16's 269 MB/s, so nothing degraded through the splitter and converter. ⚠️ **`0x0` only means the rail never fell below ~4.63V, not that it sits at 5.1V** — a converter set to 4.8V passes this test with no reserve, so a meter at the USB-C under load is still owed. **Gigabit survived the new path** (`1Gbps/Full`, flow control), which is not automatic: many cheap PoE splitters and Ethernet arrestors pass two pairs and force 100 Mbps, and pass 21's claim that going wired reopens raw video depends on this. Camera confirmed genuinely live rather than a stuck stream — luminance 15.3684 / 15.3711 / 15.3681 across three frames, jittering because the AEC rails to maximum gain against a capped lens. ⚠️ **The finding that matters is thermal, and it is a new open question.** 63.7°C mean and 65.2°C peak under load at **22.2°C ambient** is a **41.5°C rise**, entirely passive with no cooling device registered. That puts the ceiling for an unthrottled Pi at about **38°C ambient**, against this plan's own **60–70°C** figure for a sealed box in sun — a 25–30°C gap, so the failure is continuous hard throttling at 85°C rather than a lost margin. A fan is ruled out twice over: no airflow in IP66, and the PoE HAT was rejected partly for having one. That leaves conduction, and ABS runs ~0.17 W/m·K, so the shell is not a radiator without a metal path through the wall — which then conducts solar heat inward and complicates the seal. ⚠️ **The 60–70°C figure has never been measured**, so log the empty box in place before designing cooling against an assumption. Also corrected: the Phase 2 load budget omitted the USB3 SSD entirely, since the table predates pass 16. Audio is down for the expected reason — cable unplugged pending the shielded re-solder, `lsusb` shows no audio device at all, exactly pass 23's adapter behaviour and not a regression. Frigate's hostname resolution failed until 14:41:05 and self-healed when the Pi's DHCP lease returned, which is pass 21's unresolved reservation item resurfacing. Minor and unexplained: the feeder path now advertises `Stream #0:1: Data: none`, harmless while Frigate decodes and records normally. |
+
+| 26 | 2026-09-22 | **Window hole resized from 1⅜" to 2" (50.8mm)**, so future lenses do not mean re-drilling a wall the pane is already bedded to. ⚠️ **Longer lenses need *smaller* holes, not bigger** — the half-field angle shrinks with focal length, so the `0.49 × d` cone term collapses and the hole is set almost entirely by front element diameter. Across the realistic C-mount range at d=8.5mm: 8mm needs 38.3mm, 12mm 35.6mm, 16mm 31.2mm (current), 25mm 32.7mm, and even a fat 50mm f/0.95 only 46.3mm. **2" covers every one**, and costs little — bead land on the pane falls from 32.6mm to 24.6mm per side against a 7.5mm budget, and wall land stays 32.1mm per side of a 115mm face. **A ~90mm aperture, nearly as wide as the pane, was considered and rejected:** the silicone bead is the pane's entire mount, so ~5mm of land per side removes the mount, the ~1mm setting blocks have nowhere to sit, and plate deflection scales with span⁴ — about 44× more on a 1mm plate, which is a hail question rather than a wind one. ⚠️ **A swappable mask taped to the inner face of the glass was rejected with it:** adhesive at 60–70°C creeps and outgasses onto the coldest surface in the box, which is the window, and felt against glass wicks the condensation a breather-vented enclosure will produce. **The same idea belongs on the barrel instead** — a slip-on flocked baffle tube, sized per lens, swapping with the lens, touching nothing, and blocking off-axis light along its whole length rather than at a single plane. Logged as an idea for the flocking stage, not specified. ⚠️ **The bigger hole spends glare margin:** at 34.9mm the hole was a shallow hood over a 31.2mm cone, at 50.8mm it is wide open, so more oblique light reaches an uncoated pane on a system where pass 18 already found veiling glare dominant. The barrel baffle is what pays that back. **Knock-on, and it is large: lateral margin goes 1.86mm → 9.80mm, so the yaw budget goes 1.68° → 8.78°** — a 5.2× loosening that strongly vindicates pass 24's decision to set yaw by eye. ⚠️ Yaw still matters, but the binding constraint is now perpendicularity to the pane and the ghosting it causes, which has no measured budget, rather than vignetting. Also struck: the 50×50mm pane alternative, which no longer covers the hole. |
 
 ---
 
@@ -1250,14 +1252,14 @@ differential      ~0.6 mm
       between pane and wall, rest the pane on them, and fill the rest. Uniform bead,
       no bearing on high spots, and the pane floats in a compliant layer rather than
       being pinched against ABS that moves 0.6mm relative to it.
-- [x] **Bead thickness is absorbed by the 1⅜" hole.** It pushes the pane toward the
+- [x] **Bead thickness is absorbed by the 2" hole.** It pushes the pane toward the
       lens and so adds to `d`:
 
-      | Bead | d | Hole needed | 1⅜" margin |
+      | Bead | d | Hole needed | 2" margin |
       |---|---|---|---|
-      | 0.0mm | 8.5mm | 31.2mm | 3.7mm |
-      | 1.0mm | 9.5mm | 31.7mm | 3.3mm |
-      | 2.0mm | 10.5mm | 32.2mm | 2.8mm |
+      | 0.0mm | 8.5mm | 31.2mm | 9.80mm |
+      | 1.0mm | 9.5mm | 31.7mm | 9.55mm |
+      | 2.0mm | 10.5mm | 32.2mm | 9.30mm |
 
 - [ ] ⚠️ **Do not fix the camera's lateral position before the pane is bedded.**
       Reference the 1mm air gap to the pane's **actual installed surface**, measured at
@@ -1293,31 +1295,76 @@ gap so the lip never touches the pane.
 | lip front face | 3.5 | 28.7mm |
 | quartz inner face | 4.5 | 29.2mm |
 | quartz outer face | 5.5 | 29.7mm |
-| **outer face of wall** | **8.5** | **31.2mm ← the hole** |
+| **outer face of wall** | **8.5** | **31.2mm ← the minimum** |
 
 - [x] **Vignetting check closed.** The lip's 36mm bore against the 28.7mm required at
       that plane leaves 3.7mm clearance per side. The lip is nowhere near the light
       cone — it is a built-in hood, and the lens covers the sensor as shipped.
 - [ ] **Mount the pane on the inside face** over the hole. The seal then sits where
       weather cannot reach it and the hole depth becomes a shallow hood.
-- [ ] **Use a 1⅜" (34.9mm) hole saw.** Two reasons, not one:
+- [x] **DECIDED 2026-09-22 — use a 2" (50.8mm) hole saw**, sized for the lens *range*
+      rather than the lens in hand. 31.2mm is what the current 16mm needs; the wall is
+      drilled once and the pane is bedded over it, so the hole is the expensive thing to
+      get wrong.
 
-      | Saw | Dia | Verdict |
-      |---|---|---|
-      | 1¼" | 31.75mm | only 0.5mm over the 31.2mm minimum |
-      | **1⅜"** | **34.92mm** | **1.54mm of bearing land against the wall** |
-      | 1½" | 38.10mm | lens passes straight through — no land, and a 38mm aperture spilling into the box |
+      ⚠️ **Longer lenses need smaller holes, not bigger.** The half-field angle shrinks
+      with focal length, so the cone term collapses and the hole is set almost entirely
+      by front element diameter:
+
+      | Lens | cone factor | front element | hole needed at d=8.5mm |
+      |---|---|---|---|
+      | 8mm | 0.98 | ~30mm | 38.3mm |
+      | 12mm | 0.66 | ~30mm | 35.6mm |
+      | **16mm (in hand)** | 0.49 | 27mm | **31.2mm** |
+      | 25mm | 0.31 | ~30mm | 32.7mm |
+      | 50mm f/0.95 | 0.16 | ~45mm | 46.3mm |
+
+      2" clears all of them, including about the fattest glass anyone puts on a 1/2.3"
+      sensor. ⚠️ Front element diameter is the term that varies most between makers, so
+      **check it against any actual candidate lens** rather than trusting the estimates
+      in that column.
+
+- [x] **What 2" costs, and it is affordable.** Bead land on the pane drops from 32.6mm
+      to 24.6mm per side, still over 3× the 7.5mm budgeted; wall land stays 32.1mm per
+      side of the 115mm face.
+
+- [x] **A ~90mm aperture — nearly the full pane — was considered and rejected.** The
+      silicone bead *is* the pane's mount, since screws and hard clamping are already
+      ruled out. ~5mm of land per side removes the mount, leaves nowhere for the ~1mm
+      setting blocks, and does not survive a few mm of centring error. Plate deflection
+      scales with span⁴, so 34.9 → 90mm is ~44× on a 1mm plate — a hail question. A 90mm
+      hole in a 115mm face also leaves two 12mm strips of ABS, at the face carrying the
+      camera mount and the lid's sealing edge.
+
+- [ ] ⚠️ **The 2" hole is no longer a hood, and that costs glare.** At 34.9mm the hole
+      shaded oblique light on its way to a 31.2mm cone; at 50.8mm it is wide open, so
+      more of it reaches an uncoated pane — on a system where pass 18 found veiling
+      glare already dominant. This is the one real cost of the resize, and the barrel
+      baffle below is what pays it back.
 
 - [ ] ⚠️ **Do not plan to seal or bear against the lip.** At 1mm wall thickness it is a
-      thin rim, not a flange: a 1⅜" hole leaves only 1.54mm of land, and the lip's 36mm
-      bore is *wider* than the 34.9mm hole, so it does not shade the aperture at all —
-      it sits entirely outside it with a 0.54mm open annulus. Too slight to seal
-      against and too slight to take a compression ring.
+      thin rim, not a flange, and at 2" the lip's 38mm OD passes straight through the
+      hole with no land at all. That loses nothing: the 1.54mm a 1⅜" hole would have
+      left was never doing a job, being too slight to seal against or to take a
+      compression ring.
 - [ ] **Control spill light with flocking instead**, on the barrel and on the interior
       around the window. Light that gets past the lens then lands on flocking and dies
       there. This is also the only option that respects the pane: any compression seal
       at the lens front, with the quartz on the inside face, would press on 1mm quartz
       — which the CTE section above forbids.
+- [ ] **Idea for the flocking stage — a slip-on baffle tube on the barrel.** A flocked
+      sleeve sized to each lens, sliding over the barrel and reaching toward the pane,
+      restores the aperture the 2" hole gives up and swaps with the lens. It blocks
+      off-axis light along its whole length rather than at one plane, which beats a flat
+      mask at the window. Not specified yet — shape and length get worked out with
+      flocking in hand.
+- [ ] ⚠️ **Do not tape a mask to the inner face of the pane.** It is the obvious way
+      to make the aperture swappable and it fails twice over in this box: adhesive at
+      60–70°C creeps and outgasses, and what it outgasses condenses on the coldest
+      surface in the enclosure — which is the window, in the optical path, behind a
+      seal meant to stay shut a year. Felt held against glass also wicks and holds the
+      condensation a breather-vented box will produce. Put the mask on the barrel, where
+      it touches nothing.
 - [ ] Note the formula rewards keeping the lens close to the glass, which is also what
       reflection control wants. Both constraints push the same way — the lip is the
       only thing stopping you going closer.
@@ -1446,14 +1493,22 @@ looks:
 
 | Yaw | Lateral at tip | |
 |---|---|---|
-| 0.50° | 0.55mm | 30% of margin |
-| 1.00° | 1.11mm | 60% of margin |
-| 1.50° | 1.66mm | 89% of margin |
-| **2.00°** | **2.22mm** | **vignettes** |
+| 0.50° | 0.55mm | 6% of margin |
+| 1.00° | 1.11mm | 11% of margin |
+| 2.00° | 2.22mm | 23% of margin |
+| 4.00° | 4.44mm | 45% of margin |
+| **8.78°** | **9.80mm** | **vignettes** |
 
-Lateral margin is only **1.86mm** — half of (34.9mm hole − 31.2mm required). **1.68° of
-yaw consumes all of it**, and well before that the axis stops being perpendicular to
-the pane, which reintroduces the ghosting the good glass was chosen to avoid.
+Lateral margin is **9.80mm** — half of (50.8mm hole − 31.2mm required) — so **8.78° of
+yaw is what it takes to vignette**.
+
+⚠️ **This table was 5.2× tighter before pass 26.** At the original 1⅜" hole the margin
+was 1.86mm and the budget 1.68°, which is what made anti-rotation hardware look
+necessary. The 2" hole loosens it enormously and vindicates pass 24's decision to set
+yaw by eye. **It does not make yaw free:** well before vignetting, the axis stops being
+perpendicular to the pane and reintroduces the ghosting the good glass was chosen to
+avoid. That is now the binding constraint, and unlike vignetting it has no measured
+budget — so square it up as well as you can and treat 8.78° as a backstop, not a target.
 
 - [x] **DECIDED 2026-09-17 — set yaw by eye, add no anti-rotation hardware.** Pins, a
       fence along the shelf, or an upstand bearing on the camera body would all work,
@@ -1461,8 +1516,9 @@ the pane, which reintroduces the ghosting the good glass was chosen to avoid.
       stage for distance and yaw**, which is a live possibility now that the slot makes
       the joint adjustable. The failure mode also announces itself: vignetting appears
       in the image corners, so the check is free and the correction is one loosened
-      screw. The 1.68° budget in the preceding table still applies — it is what "by eye"
-      has to hit, and across the 38mm camera body it is 1.1mm.
+      screw. ⚠️ **Updated pass 26:** the budget was 1.68° when this was decided and is
+      **8.78°** at the 2" hole — 5.7mm across the 38mm camera body, which is easy by
+      eye. Perpendicularity to the pane, not vignetting, is now what limits yaw.
 - [ ] Revisit if the mount ever carries the 25mm lens. More overhang and more mass
       shrink the angular budget while making the joint harder to hold by friction.
 - [ ] The lens-to-adapter-to-camera joint is separately locked and is **not** this
@@ -1528,7 +1584,7 @@ optical axis, so the camera bolts straight to it and slides fore/aft.
 **What the slot buys.** The 64.5mm screw-to-pane figure stops being a one-shot drilled
 hole. Bead thickness is only known after the pane is bedded, and the 25mm lens moves the
 screw back by its own extra length — both are now a slide rather than a second hole in a
-shelf already built around a 34.9mm aperture. It also leaves yaw free, which is what
+shelf already built around the window aperture. It also leaves yaw free, which is what
 makes setting it by eye recoverable.
 
 ⚠️ **The slot clamps, it does not locate.** A single screw on a slot can creep, and 1mm
@@ -1586,7 +1642,7 @@ The stack below holds `d` at 8.5mm, which is what keeps the hole at 31.2mm.
 
 ```
 outside
-  wall, 3mm, 34.9mm hole
+  wall, 3mm, 50.8mm hole
   pane, 1mm, silicone-bedded on the inner face
   1mm air gap
   lens lip
@@ -1600,10 +1656,9 @@ estimate of "just over 100mm" and is superseded by the measurement above.
 
 - [ ] **Keep the pane whole** — recommended. Fused quartz is not easily replaced,
       cutting it needs a diamond saw with water, and a botched cut costs the part.
-- [ ] *Alternative if a diamond saw is available:* the hole is only 34.9mm, so a
-      50×50mm pane covers it with generous margin and **halves the thermal
-      differential** — 0.3mm instead of 0.6mm across the bonded span. Better
-      engineering, not worth improvising for now that the margin is known to be fine.
+- [x] **Struck in pass 26:** a 50×50mm pane was floated as a way to halve the thermal
+      differential. It does not cover a 50.8mm hole at all, so the full 100mm pane is now
+      the only option rather than merely the recommended one.
 - [ ] Silicone absorbs 0.6mm across 100mm provided the bead has some width and the pane
       is not pinched anywhere.
 
@@ -2057,7 +2112,7 @@ was wrong for 0.17 and the real lever is `alerts`/`detections` retention.
 | Standoffs / shim stock | Fine-tune shelf height to put the axis at 31mm | 3 | ☐ |
 | Locating pins or bracket upstand | ⚠️ Anti-yaw — **deferred**, would foreclose a motorised stage; set by eye | 3 | ☐ |
 | Black flocking / felt | Lens barrel + interior — **not optional, uncoated pane** | 3 | ☐ |
-| 1⅜" (34.9mm) hole saw | Window aperture — 31.2mm needed, 3.7mm margin | 3 | ☐ |
+| **2" (50.8mm) hole saw** | Window aperture — sized for the lens range, not the lens in hand | 3 | ☐ |
 | White vinyl or paint | Cover the clear lid **from outside** (solar load) | 3 | ☐ |
 | Pi HQ Camera, IR-filtered | Sensor — **not NoIR** | 2 | ☑ decided |
 | 16mm C-mount lens, f/1.4 | Optics | 2 | ☑ decided (sourcing open) |
