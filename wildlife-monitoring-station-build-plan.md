@@ -1,6 +1,6 @@
 # Backyard Wildlife Monitoring Station — Build Plan
 
-**Status:** 🔨 Phase 3 — enclosure build started — Pass 26
+**Status:** 🔨 Phase 3 — enclosure build started — Pass 27
 **Last updated:** 2026-09-22
 
 A local-inference camera + acoustic station for bird ID (image + sound), with a
@@ -41,6 +41,8 @@ parallel ultrasonic channel for bats and orthoptera. No third-party inference.
 | 25 | 2026-09-21 | **The node is back on the designed power chain and it holds: PoE → surge arrestor → splitter → buck → Pi 4.** `throttled=0x0` before, during and after a sustained 4.2 GB write at **271 MB/s** with the camera streaming, ARM pinned at 1800 MHz throughout, no undervoltage in `dmesg` or `in0_lcrit_alarm`, one clean boot. The SSD matches pass 16's 269 MB/s, so nothing degraded through the splitter and converter. ⚠️ **`0x0` only means the rail never fell below ~4.63V, not that it sits at 5.1V** — a converter set to 4.8V passes this test with no reserve, so a meter at the USB-C under load is still owed. **Gigabit survived the new path** (`1Gbps/Full`, flow control), which is not automatic: many cheap PoE splitters and Ethernet arrestors pass two pairs and force 100 Mbps, and pass 21's claim that going wired reopens raw video depends on this. Camera confirmed genuinely live rather than a stuck stream — luminance 15.3684 / 15.3711 / 15.3681 across three frames, jittering because the AEC rails to maximum gain against a capped lens. ⚠️ **The finding that matters is thermal, and it is a new open question.** 63.7°C mean and 65.2°C peak under load at **22.2°C ambient** is a **41.5°C rise**, entirely passive with no cooling device registered. That puts the ceiling for an unthrottled Pi at about **38°C ambient**, against this plan's own **60–70°C** figure for a sealed box in sun — a 25–30°C gap, so the failure is continuous hard throttling at 85°C rather than a lost margin. A fan is ruled out twice over: no airflow in IP66, and the PoE HAT was rejected partly for having one. That leaves conduction, and ABS runs ~0.17 W/m·K, so the shell is not a radiator without a metal path through the wall — which then conducts solar heat inward and complicates the seal. ⚠️ **The 60–70°C figure has never been measured**, so log the empty box in place before designing cooling against an assumption. Also corrected: the Phase 2 load budget omitted the USB3 SSD entirely, since the table predates pass 16. Audio is down for the expected reason — cable unplugged pending the shielded re-solder, `lsusb` shows no audio device at all, exactly pass 23's adapter behaviour and not a regression. Frigate's hostname resolution failed until 14:41:05 and self-healed when the Pi's DHCP lease returned, which is pass 21's unresolved reservation item resurfacing. Minor and unexplained: the feeder path now advertises `Stream #0:1: Data: none`, harmless while Frigate decodes and records normally. |
 
 | 26 | 2026-09-22 | **Window hole resized from 1⅜" to 2" (50.8mm)**, so future lenses do not mean re-drilling a wall the pane is already bedded to. ⚠️ **Longer lenses need *smaller* holes, not bigger** — the half-field angle shrinks with focal length, so the `0.49 × d` cone term collapses and the hole is set almost entirely by front element diameter. Across the realistic C-mount range at d=8.5mm: 8mm needs 38.3mm, 12mm 35.6mm, 16mm 31.2mm (current), 25mm 32.7mm, and even a fat 50mm f/0.95 only 46.3mm. **2" covers every one**, and costs little — bead land on the pane falls from 32.6mm to 24.6mm per side against a 7.5mm budget, and wall land stays 32.1mm per side of a 115mm face. **A ~90mm aperture, nearly as wide as the pane, was considered and rejected:** the silicone bead is the pane's entire mount, so ~5mm of land per side removes the mount, the ~1mm setting blocks have nowhere to sit, and plate deflection scales with span⁴ — about 44× more on a 1mm plate, which is a hail question rather than a wind one. ⚠️ **A swappable mask taped to the inner face of the glass was rejected with it:** adhesive at 60–70°C creeps and outgasses onto the coldest surface in the box, which is the window, and felt against glass wicks the condensation a breather-vented enclosure will produce. **The same idea belongs on the barrel instead** — a slip-on flocked baffle tube, sized per lens, swapping with the lens, touching nothing, and blocking off-axis light along its whole length rather than at a single plane. Logged as an idea for the flocking stage, not specified. ⚠️ **The bigger hole spends glare margin:** at 34.9mm the hole was a shallow hood over a 31.2mm cone, at 50.8mm it is wide open, so more oblique light reaches an uncoated pane on a system where pass 18 already found veiling glare dominant. The barrel baffle is what pays that back. **Knock-on, and it is large: lateral margin goes 1.86mm → 9.80mm, so the yaw budget goes 1.68° → 8.78°** — a 5.2× loosening that strongly vindicates pass 24's decision to set yaw by eye. ⚠️ Yaw still matters, but the binding constraint is now perpendicularity to the pane and the ghosting it causes, which has no measured budget, rather than vignetting. Also struck: the 50×50mm pane alternative, which no longer covers the hole. |
+
+| 27 | 2026-09-22 | **Corrected: the breather vent does not handle fogging, and this plan said it did.** ⚠️ **An ePTFE vent passes water vapour freely** — pores run 0.2–1µm against a 0.3nm gas molecule, so nitrogen, oxygen and vapour all diffuse through without distinction. What it blocks is the *liquid* phase, by capillary pressure: PTFE's ~115° contact angle puts water entry at **~2.4 bar** for a 0.5µm pore, orders of magnitude above rain or a hose test. Those are two different questions and the vent only answers one. **Its real job is stopping the box acting as a pump** — unvented, an enclosure exhales all afternoon and then pulls a vacuum overnight, drawing air back through gland seams and gasket, which is how sealed boxes flood; IP66 is a test condition, not a promise under sustained negative pressure. **So the vent lets moisture leave rather than keeping it out**, and interior absolute humidity equilibrates with outdoors over days. ⚠️ **Condensation therefore still happens, and the window is where** — thin, low-mass, high-emissivity, coupled to outdoor temperature and with a clear sky view, so radiative cooling on a calm clear night can put it *below* outdoor air temperature while warm interior air convects against its inner face. It lands at dawn, which is peak bird activity. Note the irony against pass 25: the Pi's waste heat holds most interior surfaces above dew point and is genuinely protective, but does nothing for the window, because heating air does not change its dew point. **Assembly conditions now matter explicitly** — this station's own weather log logged 32°C at 62% RH, a **dew point of ~24°C**, so closing the box in those conditions charges it with air that condenses on anything cooler, which is most Baton Rouge nights. Close it on a cool dry morning. **Desiccant and a vent are in tension**, which the plan half-knew by calling desiccant a backup: in a vented box it equilibrates with outdoor air, so it is for the initial charge and the drying-in weeks, not steady state. Sizing is a non-issue — 8.4L across a 40°C swing moves ~1.15L, averaging 1.6 mL/min over a 12-hour cooling cycle against vent ratings in the hundreds. ⚠️ Two ways to ruin one: **paint over it** while masking the box white for solar load, or let **surfactants** reach it — detergent, road film or insect residue lower water surface tension and drop that 2.4 bar sharply. |
 
 ---
 
@@ -1074,15 +1076,61 @@ Useful to know before tuning anything:
 - [x] IP66 ABS or polycarbonate box. **In hand: 225 × 325 × 115mm internal**, larger
       than the ~200×150×100 originally specified. See placement, below.
 - [ ] **Light gray or white.** Never black.
-- [ ] **Gore-style breather vent plug** (M12, ~$8). Condensation, not rain, is
-      the primary failure mode. This is the actual fix.
-- [ ] Rechargeable silica desiccant as backup, not as the fix
+- [ ] **Gore-style breather vent plug** (M12, ~$8). Condensation, not rain, is the
+      primary failure mode, and this is the right part — but see "What the breather
+      vent does" below for what it does and does not fix. It is not a fogging cure.
+- [ ] Rechargeable silica desiccant — for the initial charge and the drying-in weeks,
+      not a steady-state fix. ⚠️ In a *vented* box desiccant eventually equilibrates
+      with outdoor air, because the vent keeps supplying more moisture. That is not an
+      argument against either part; it is the reason desiccant cannot be the answer on
+      its own.
 - [ ] **All penetrations on the bottom face.** Cable glands sized to cable OD
       (PG7 = 3–6.5mm, PG9 = 4–8mm). Drip loops on every cable.
 - [ ] **Sunshade** standing 20–30mm off the box, open sides for airflow.
       A box in sun hits 60–70°C and the Pi throttles hard.
 - [ ] Fit **one extra gland now, blanked off**, for future expansion
 - [ ] Size the box for a future XLR audio interface if you ever go that route
+- [ ] ⚠️ **Close the box on a cool, dry morning, not a hot humid afternoon.** Whatever
+      air is inside at assembly is the charge it starts with. The station's own weather
+      log recorded 32°C at 62% RH, which is a **dew point of ~24°C** — seal it in that
+      and every surface below 24°C condenses, which is most nights here.
+- [ ] ⚠️ **Mask the vent before painting.** The box gets covered white for solar load,
+      and paint on the membrane destroys it. Small part, easy to overlook with a
+      spray can in hand.
+- [ ] ⚠️ **No soapy water near the vent.** Surfactants — detergent, road film, insect
+      residue — lower water's surface tension and collapse the membrane's water entry
+      pressure. Clean the enclosure with plain water around it.
+
+#### What the breather vent does
+Worth being precise about, because it is easy to over-credit and this plan did.
+
+**It passes water vapour.** ePTFE pores run 0.2–1µm against a ~0.3nm gas molecule, so
+nitrogen, oxygen and water vapour all diffuse through alike. The membrane has no
+selectivity between gases, and vapour is a gas. **Humid air does enter the box.**
+
+**It blocks liquid water**, by capillary pressure. PTFE's water contact angle is ~115°,
+so intruding the liquid phase into a pore costs:
+
+```
+dP = -4 y cos(0) / d  =  -4 x 0.072 x cos(115) / 0.5e-6  ~=  2.4 bar
+```
+
+Rain, wind-driven spray and a hose test are orders of magnitude below that.
+
+**Its real job is stopping the box acting as a pump.** Unvented, the enclosure heats all
+afternoon and pushes air out past the gasket, then cools overnight and pulls a partial
+vacuum — drawing air back in through gland seams, the gasket, any path available, along
+with any liquid water sitting on a seal. That suction is how sealed boxes flood. IP66 is
+a test condition, not a promise under sustained negative pressure. The vent gives the
+cycle a deliberate path so the seals never see the differential.
+
+- [x] **Sizing is a non-issue.** 8.4L of internal volume across a 40°C swing moves
+      ~1.15L of air, which averages 1.6 mL/min over a 12-hour cooling cycle against vent
+      ratings in the hundreds of mL/min. One M12 plug is overkill, which is correct.
+- [ ] ⚠️ **It does not stop condensation.** The vent lets moisture *leave* rather than
+      keeping it out, so interior absolute humidity tracks outdoors over days. Whenever
+      a surface falls below the interior dew point, it fogs. See the window note in
+      "Remaining window items".
 
 ### Mounting
 - [ ] **Rigidity is the requirement; concrete is just one way to get it.** At an
@@ -1424,7 +1472,21 @@ front edge.
       the backboard, Pi and walls, then returns into the lens.
 - [ ] External hood over the window for flare and rain — separate from the box
       sunshade.
-- [ ] Interior fogging is already handled by the Gore vent.
+- [ ] ⚠️ **Interior fogging is NOT handled by the Gore vent** — corrected pass 27,
+      this line previously claimed it was. The vent passes water vapour freely; it
+      equalises pressure and blocks the liquid phase. See "What the breather vent does".
+- [ ] ⚠️ **The window is the surface that will fog, and it fogs at dawn.** It is
+      thin, low-mass, high-emissivity, thermally coupled to outdoors and looking at open
+      sky, so radiative cooling on a calm clear night can hold it *below* outdoor air
+      temperature while warm interior air convects against its inner face and delivers
+      moisture to it. Dawn is peak bird activity, so this lands squarely on the
+      deliverable. Note that pass 25's waste-heat problem is protective everywhere
+      *except* here: warming the interior raises surface temperatures but does not
+      change the air's dew point, and the window is the one surface tied to outdoor
+      temperature rather than interior.
+- [ ] No mitigation is chosen yet. Assembly humidity and desiccant during drying-in are
+      the cheap levers; anything better means keeping the pane warm, which fights the
+      thermal budget rather than helping it.
 
 ### Build order — reversible before irreversible
 Two steps here cannot be undone, so everything that can be dry-fitted comes first.
@@ -2118,7 +2180,8 @@ was wrong for 0.17 and the real lever is `alerts`/`detections` retention.
 | 16mm C-mount lens, f/1.4 | Optics | 2 | ☑ decided (sourcing open) |
 | C-to-CS adapter | Back focus | 2 | ☐ |
 | IP66 ABS enclosure, 225×325×115 | **In hand.** Clear lid rejected as a window | 3 | ☑ |
-| M12 breather vent plug | Condensation | 3 | ☐ |
+| M12 breather vent plug | Pressure equalisation — ⚠️ passes vapour, not a fogging fix | 3 | ☐ |
+| Rechargeable silica desiccant | Initial charge + drying-in only; equilibrates in a vented box | 3 | ☐ |
 | Cable glands PG7/PG9 | — | 3 | ☐ |
 | PUI AOM-5024L-HD-R ×2 | Bird mic capsule — **tested working**, one spare | 4 | ☑ |
 | UGREEN USB-3.5mm TRRS adapter | Bird mic input — **tested**: bias OK, flat 4–20kHz, no AGC | 4 | ☑ |
