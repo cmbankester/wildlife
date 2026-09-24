@@ -81,3 +81,5 @@ mosquitto/data/
 # --- Local overrides ------------------------------------------------------
 .env
 docker-compose.override.yml
+# direnv: points Claude Code at the personal config dir for this checkout.
+.envrc
