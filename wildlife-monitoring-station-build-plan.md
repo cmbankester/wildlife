@@ -1,7 +1,7 @@
 # Backyard Wildlife Monitoring Station — Build Plan
 
-**Status:** 🔨 Phase 3 — enclosure build started — Pass 27
-**Last updated:** 2026-09-22
+**Status:** 🔨 Phase 3 — enclosure build started — Pass 28
+**Last updated:** 2026-10-01
 
 A local-inference camera + acoustic station for bird ID (image + sound), with a
 parallel ultrasonic channel for bats and orthoptera. No third-party inference.
@@ -43,6 +43,8 @@ parallel ultrasonic channel for bats and orthoptera. No third-party inference.
 | 26 | 2026-09-22 | **Window hole resized from 1⅜" to 2" (50.8mm)**, so future lenses do not mean re-drilling a wall the pane is already bedded to. ⚠️ **Longer lenses need *smaller* holes, not bigger** — the half-field angle shrinks with focal length, so the `0.49 × d` cone term collapses and the hole is set almost entirely by front element diameter. Across the realistic C-mount range at d=8.5mm: 8mm needs 38.3mm, 12mm 35.6mm, 16mm 31.2mm (current), 25mm 32.7mm, and even a fat 50mm f/0.95 only 46.3mm. **2" covers every one**, and costs little — bead land on the pane falls from 32.6mm to 24.6mm per side against a 7.5mm budget, and wall land stays 32.1mm per side of a 115mm face. **A ~90mm aperture, nearly as wide as the pane, was considered and rejected:** the silicone bead is the pane's entire mount, so ~5mm of land per side removes the mount, the ~1mm setting blocks have nowhere to sit, and plate deflection scales with span⁴ — about 44× more on a 1mm plate, which is a hail question rather than a wind one. ⚠️ **A swappable mask taped to the inner face of the glass was rejected with it:** adhesive at 60–70°C creeps and outgasses onto the coldest surface in the box, which is the window, and felt against glass wicks the condensation a breather-vented enclosure will produce. **The same idea belongs on the barrel instead** — a slip-on flocked baffle tube, sized per lens, swapping with the lens, touching nothing, and blocking off-axis light along its whole length rather than at a single plane. Logged as an idea for the flocking stage, not specified. ⚠️ **The bigger hole spends glare margin:** at 34.9mm the hole was a shallow hood over a 31.2mm cone, at 50.8mm it is wide open, so more oblique light reaches an uncoated pane on a system where pass 18 already found veiling glare dominant. The barrel baffle is what pays that back. **Knock-on, and it is large: lateral margin goes 1.86mm → 9.80mm, so the yaw budget goes 1.68° → 8.78°** — a 5.2× loosening that strongly vindicates pass 24's decision to set yaw by eye. ⚠️ Yaw still matters, but the binding constraint is now perpendicularity to the pane and the ghosting it causes, which has no measured budget, rather than vignetting. Also struck: the 50×50mm pane alternative, which no longer covers the hole. |
 
 | 27 | 2026-09-22 | **Corrected: the breather vent does not handle fogging, and this plan said it did.** ⚠️ **An ePTFE vent passes water vapour freely** — pores run 0.2–1µm against a 0.3nm gas molecule, so nitrogen, oxygen and vapour all diffuse through without distinction. What it blocks is the *liquid* phase, by capillary pressure: PTFE's ~115° contact angle puts water entry at **~2.4 bar** for a 0.5µm pore, orders of magnitude above rain or a hose test. Those are two different questions and the vent only answers one. **Its real job is stopping the box acting as a pump** — unvented, an enclosure exhales all afternoon and then pulls a vacuum overnight, drawing air back through gland seams and gasket, which is how sealed boxes flood; IP66 is a test condition, not a promise under sustained negative pressure. **So the vent lets moisture leave rather than keeping it out**, and interior absolute humidity equilibrates with outdoors over days. ⚠️ **Condensation therefore still happens, and the window is where** — thin, low-mass, high-emissivity, coupled to outdoor temperature and with a clear sky view, so radiative cooling on a calm clear night can put it *below* outdoor air temperature while warm interior air convects against its inner face. It lands at dawn, which is peak bird activity. Note the irony against pass 25: the Pi's waste heat holds most interior surfaces above dew point and is genuinely protective, but does nothing for the window, because heating air does not change its dew point. **Assembly conditions now matter explicitly** — this station's own weather log logged 32°C at 62% RH, a **dew point of ~24°C**, so closing the box in those conditions charges it with air that condenses on anything cooler, which is most Baton Rouge nights. Close it on a cool dry morning. **Desiccant and a vent are in tension**, which the plan half-knew by calling desiccant a backup: in a vented box it equilibrates with outdoor air, so it is for the initial charge and the drying-in weeks, not steady state. Sizing is a non-issue — 8.4L across a 40°C swing moves ~1.15L, averaging 1.6 mL/min over a 12-hour cooling cycle against vent ratings in the hundreds. ⚠️ Two ways to ruin one: **paint over it** while masking the box white for solar load, or let **surfactants** reach it — detergent, road film or insect residue lower water surface tension and drop that 2.4 bar sharply. |
+
+| 28 | 2026-10-01 | **Shielded mic cable in, and the hum was a bad solder joint all along.** After the first solder job the capsule worked but measured 60 Hz at **−41 dB**, 120 Hz at −45 and the 1–8kHz floor at −52 — worse than pass 23's unshielded figure — and a day of tests built an elaborate story on it: a PoE-injected 120 Hz, an adapter-limited floor, a position-dependent source somewhere in the office. **A resolder erased all of it.** Same spot, same PoE power, same 100% gain: 60 Hz **−69.8** (−28.8), 120 Hz **−62.7** (−17.4), 1–8kHz **−65.5** (−13.6), >8kHz **−76.0** (−20.6). ⚠️ **The signature of a bad ground joint, for next time:** strong line-locked 60 Hz with 120/180 harmonics, a 120 Hz that tracks the power supply, a broadband floor 15–25 dB high, and pickup that changes when the capsule moves — the joint fault turns the ground return into an impedance that everything couples across. Resolder before measuring anything else. ⚠️ **A shorted capsule is not a valid floor test on this adapter**: Sleeve-to-Ring-2 is the CTIA headset button, and the adapter logged `KEY_PLAYPAUSE` held for the whole short and released when the jumper came off, so the −91 dB it read may be a muted input. Terminate with ~2.2kΩ instead, which is above every headset-button band. The muffled capsule bounds the electronics floor instead: **at or below −69 dB in 1–8kHz, −83 above 8kHz**. **Wiring:** braid is ground, capsule − → Ring 2, + → Sleeve; a reversed capsule looks like an open input, not silence, and BirdNET-Go's level stats round it to `zero_pct: 100`. **BirdNET-Go has zero detections ever**; its only high-confidence result since reconnection was `Human` at 0.93, removed by the privacy filter, which fires continuously on indoor speech. The node's SSH user is `pi`. |
 
 ---
 
@@ -1764,7 +1766,8 @@ estimate of "just over 100mm" and is superseded by the measurement above.
       mangle exactly the frequencies BirdNET needs)
 - [ ] **Mono.** Stereo introduces phase errors that reduce accuracy.
 - [ ] Capsule: PUI Audio AOM-5024L-HD-R is the community favorite
-- [ ] Shielded mic cable, under 10m
+- [x] Shielded mic cable, under 10m — **fitted 2026-09-30, resoldered 2026-10-01**; braid is ground.
+      See pass 28 for what it did and did not fix.
 - [ ] **Housing:** element pointing *down* inside a PVC elbow or cup, acoustic
       mesh over the opening, foam windscreen on the capsule
 - [ ] **Fur "dead cat" over the foam.** Wind is the dominant noise source.
@@ -1801,6 +1804,13 @@ silence, indistinguishable from a dead capsule or absent bias.
 
 - [x] **CTIA confirmed correct (2026-09-14).** Signal on sleeve, ground on ring 2.
       The OMTP swap was not needed.
+- [x] ⚠️ **With shielded cable, the braid is ground: capsule − → braid → Ring 2, capsule +
+      → inner core → Sleeve.** The braid carries the return current *and* screens the
+      signal conductor inside it. Swapping conductors at one end only reverses the capsule.
+- [x] ⚠️ **A reversed capsule is not silent — it looks like an open input** (2026-09-30).
+      −68 dB mean, almost all of it hum under 200 Hz, 1–8kHz at −85 to −90 dB. BirdNET-Go's
+      `audio level stats` round that to `max_level: 0`, `zero_pct: 100`, which reads as
+      digital silence. Pull a capture and measure before believing it.
 - [x] **Bandwidth measured and it is fine** — flat 4–20kHz, peak at 4–8kHz. See
       the test results below. The voice-tuned rolloff this warned about is absent.
 - [x] Done. No AGC, sensible noise floor, plug-in power present.
@@ -1882,7 +1892,11 @@ Consequences worth knowing before this is sealed in a box on a pole:
       than going silent. MediaMTX's publisher exits and BirdNET-Go logs `rtsp_404`.
 - [ ] The plug must be in place at boot, or there is no capture device at all.
 - [ ] It also makes "measure the adapter's own noise floor with the mic removed"
-      impossible, which is how the hum investigation below ran out of road.
+      impossible. ⚠️ **Do not substitute a shorted capsule** (pass 28): Sleeve-to-Ring-2
+      is the CTIA headset button, and the adapter reports it as `KEY_PLAYPAUSE` held for
+      as long as the short is in place, so the reading may be a muted input. Terminate
+      with a **~2.2kΩ resistor** across the capsule instead — above every headset-button
+      impedance band, close to the capsule's own output impedance.
 
 ⚠️ **Configure BirdNET-Go through its web UI, not by editing the YAML.** This plan already
 said so in Phase 1; ignoring it cost a crash loop. `realtime.rtsp.streams` takes structs,
@@ -1904,7 +1918,11 @@ streams:
 Hand-writing `streams: [- rtsp://...]` produced
 `'Realtime.RTSP.streams[0]' expected a map or struct, got "string"` on a restart loop.
 
-#### 60 Hz hum — investigated, electrical, and not worth more effort
+#### 60 Hz hum — pass 23, unshielded cable
+⚠️ **Describes the old unshielded cable only.** The shielded build, properly soldered,
+measures 60 Hz at −70 dB — see pass 28, below. Kept as the record of what was measured
+then.
+
 A steady 60 Hz tone sits at about **−58 dB** in the capture. Everything tried, measured:
 
 | Change | 60 Hz |
@@ -1934,6 +1952,44 @@ A steady 60 Hz tone sits at about **−58 dB** in the capture. Everything tried,
       fix, and matters more outdoors — a standoff arm several feet from a switching buck
       converter in a sealed box.
 
+#### Hum and noise floor — pass 28, shielded cable, 2026-10-01
+Shielded cable fitted, braid as ground. The first solder job worked but measured worse than
+the unshielded cable; a resolder fixed it. Both sets were taken at the same bench spot, on
+the same PoE power, at the same 100% capture gain:
+
+| Condition | 60 Hz | 120 Hz | 1–8kHz | >8kHz | <45 Hz |
+|---|---|---|---|---|---|
+| First joint, capsule open | −41.0 | −45.3 | −51.9 | −55.4 | −35.5 |
+| First joint, capsule muffled | −46.4 | −43.5 | −56.1 | −57.1 | −45.7 |
+| **Resoldered, capsule open** | **−69.8** | **−62.7** | **−65.5** | **−76.0** | −40.8 |
+| **Resoldered, capsule muffled** | −69.4 | −70.2 | −69.0 | −83.3 | −45.4 |
+
+*Method, so the next pass can compare:* capture from the RTSP stream on the workstation,
+left channel only, 30 s. Tones are Goertzel RMS in dBFS over 5–10 s, which resolves
+0.1 Hz; bands are ffmpeg `highpass`/`lowpass` → `volumedetect` mean. Every condition was
+steady within 0.5 dB across 5 s blocks. Pass 23 recorded neither method nor position, so
+its figures are not a baseline for these.
+
+- [x] ⚠️ **The first joint was bad, and it looked like a dozen other problems.** Its
+      symptoms, in the order they misled: 60 Hz with strong 120/180 harmonics; a 120 Hz
+      that dropped 16 dB on a USB-C brick, which read as PoE injection; a "shorted" floor
+      of −56 dB, which read as an adapter limit; and 60 Hz that moved 12 dB when the
+      capsule moved a metre, which read as an office source. One resolder removed all of
+      it. A poor ground joint puts an impedance in the return path that everything couples
+      across, so **resolder and remeasure before diagnosing anything downstream.**
+- [x] **The electronics floor is at or below −69 dB in 1–8kHz and −83 dB above 8kHz** —
+      the muffled-capsule figures, which include capsule self-noise and whatever the scarf
+      passes, so the true floor is lower. A shorted capsule read −91 dB but is not usable;
+      see the adapter caveats above.
+- [x] **The room, not the electronics, sets the floor.** An open capsule in a quiet office
+      sits 3.5 dB above the muffled figure in 1–8kHz and 7 dB above it above 8kHz.
+      Indoors that is the right way round; outdoors it will be more so.
+- [x] **No PoE problem.** 120 Hz is at −63 dB open and −70 muffled, on PoE. The earlier
+      "PoE chain injects 120 Hz" finding was the bad joint.
+- [ ] **Sub-45 Hz dominates the broadband level** at −41 dB open, and drops 5 dB under
+      the scarf: air movement on a bare capsule. The windscreen and fur outstanding at the
+      top of this phase address it; BirdNET ignores this band regardless.
+
 #### Remaining Phase 4 work
 - [x] **Audio bridged and running end to end (2026-09-15).** BirdNET-Go is pulling the
       stream and analysing; `analysis.log` shows live processing.
@@ -1942,9 +1998,16 @@ A steady 60 Hz tone sits at about **−58 dB** in the capture. Everything tried,
       the load model in Phase 1 assumes GPU does video and CPU does audio without
       contending — if this becomes constant once the camera is back and detecting, that
       assumption needs revisiting rather than ignoring.
-- [ ] **Shielded mic cable**, per the capsule notes above. The remaining 60 Hz is not
-      worth chasing on the bench, but the deployment puts the mic on a standoff arm
-      several feet from a switching buck converter inside a sealed box.
+- [x] **Shielded mic cable** — fitted 2026-09-30, resoldered 2026-10-01; see pass 28.
+- [ ] ⚠️ **Test coupling from the node's own electronics at close range.** Capsule and
+      cable right against the buck converter and PoE splitter, then ~30cm off, with a
+      2.2kΩ-terminated reference alongside. In the box the cable runs centimetres from both; pass
+      28 did not test this and it is the one hum question that transfers outdoors.
+- [ ] **Prove bird → detection before deploying.** BirdNET-Go's `detections` table is
+      empty — nothing has ever passed the 0.7 threshold. Play a known call from the Merlin
+      library at the capsule and confirm a row lands. Indoors, the **privacy filter**
+      fires continuously on speech (25 hits in 100 s, threshold 0.05) and its highest
+      result so far is `Human` at 0.98; that is the filter working, not a fault.
 - [ ] Windscreen, fur cover and the soft non-resonant mount are still outstanding — see
       the capsule checklist at the top of this phase.
 
@@ -2184,7 +2247,8 @@ was wrong for 0.17 and the real lever is `alerts`/`detections` retention.
 | Rechargeable silica desiccant | Initial charge + drying-in only; equilibrates in a vented box | 3 | ☐ |
 | Cable glands PG7/PG9 | — | 3 | ☐ |
 | PUI AOM-5024L-HD-R ×2 | Bird mic capsule — **tested working**, one spare | 4 | ☑ |
-| UGREEN USB-3.5mm TRRS adapter | Bird mic input — **tested**: bias OK, flat 4–20kHz, no AGC | 4 | ☑ |
+| UGREEN USB-3.5mm TRRS adapter | Bird mic input — **tested**: bias OK, flat 4–20kHz, no AGC, floor at or below −69 dB in 1–8kHz; ⚠️ a shorted input reads as a play/pause press | 4 | ☑ |
+| Shielded mic cable | Capsule → TRRS plug — **fitted**, braid to capsule − and Ring 2 | 4 | ☑ |
 | AudioMoth USB Mic + mic case | Ultrasonic — **in hand**; case has an open mic port, suits Phase 5 | 5 | ☑ |
 | USB3 SSD 128GB | Pi boot + root — **in hand**, 269 MB/s measured | 2 | ☑ |
 | Active USB extender, shielded | AudioMoth → bird box | 5 | ☑ decided |

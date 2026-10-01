@@ -41,6 +41,9 @@ The node is **wired**. That is the Phase 2 design, not a fallback — the locked
 topology is a single PoE+ run feeding a 12V bus, so a deployed node has an Ethernet
 cable by definition.
 
+Log in as `pi` (`ssh pi@wildlife-pi`). A bare `ssh wildlife-pi` sends the workstation
+username, and the node rejects it with `Permission denied (publickey)`.
+
 NetworkManager generates the wired connection automatically, so no network config is
 tracked here. ⚠️ **There is no wifi profile.** It was deleted on 2026-09-10 and not
 restored; restoring it means `nmcli device wifi connect`, with credentials from
