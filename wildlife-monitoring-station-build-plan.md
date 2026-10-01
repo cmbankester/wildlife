@@ -1,6 +1,6 @@
 # Backyard Wildlife Monitoring Station — Build Plan
 
-**Status:** 🔨 Phase 3 — enclosure build started — Pass 28
+**Status:** 🔨 Phase 3 — enclosure build started — Pass 29
 **Last updated:** 2026-10-01
 
 A local-inference camera + acoustic station for bird ID (image + sound), with a
@@ -45,6 +45,8 @@ parallel ultrasonic channel for bats and orthoptera. No third-party inference.
 | 27 | 2026-09-22 | **Corrected: the breather vent does not handle fogging, and this plan said it did.** ⚠️ **An ePTFE vent passes water vapour freely** — pores run 0.2–1µm against a 0.3nm gas molecule, so nitrogen, oxygen and vapour all diffuse through without distinction. What it blocks is the *liquid* phase, by capillary pressure: PTFE's ~115° contact angle puts water entry at **~2.4 bar** for a 0.5µm pore, orders of magnitude above rain or a hose test. Those are two different questions and the vent only answers one. **Its real job is stopping the box acting as a pump** — unvented, an enclosure exhales all afternoon and then pulls a vacuum overnight, drawing air back through gland seams and gasket, which is how sealed boxes flood; IP66 is a test condition, not a promise under sustained negative pressure. **So the vent lets moisture leave rather than keeping it out**, and interior absolute humidity equilibrates with outdoors over days. ⚠️ **Condensation therefore still happens, and the window is where** — thin, low-mass, high-emissivity, coupled to outdoor temperature and with a clear sky view, so radiative cooling on a calm clear night can put it *below* outdoor air temperature while warm interior air convects against its inner face. It lands at dawn, which is peak bird activity. Note the irony against pass 25: the Pi's waste heat holds most interior surfaces above dew point and is genuinely protective, but does nothing for the window, because heating air does not change its dew point. **Assembly conditions now matter explicitly** — this station's own weather log logged 32°C at 62% RH, a **dew point of ~24°C**, so closing the box in those conditions charges it with air that condenses on anything cooler, which is most Baton Rouge nights. Close it on a cool dry morning. **Desiccant and a vent are in tension**, which the plan half-knew by calling desiccant a backup: in a vented box it equilibrates with outdoor air, so it is for the initial charge and the drying-in weeks, not steady state. Sizing is a non-issue — 8.4L across a 40°C swing moves ~1.15L, averaging 1.6 mL/min over a 12-hour cooling cycle against vent ratings in the hundreds. ⚠️ Two ways to ruin one: **paint over it** while masking the box white for solar load, or let **surfactants** reach it — detergent, road film or insect residue lower water surface tension and drop that 2.4 bar sharply. |
 
 | 28 | 2026-10-01 | **Shielded mic cable in, and the hum was a bad solder joint all along.** After the first solder job the capsule worked but measured 60 Hz at **−41 dB**, 120 Hz at −45 and the 1–8kHz floor at −52 — worse than pass 23's unshielded figure — and a day of tests built an elaborate story on it: a PoE-injected 120 Hz, an adapter-limited floor, a position-dependent source somewhere in the office. **A resolder erased all of it.** Same spot, same PoE power, same 100% gain: 60 Hz **−69.8** (−28.8), 120 Hz **−62.7** (−17.4), 1–8kHz **−65.5** (−13.6), >8kHz **−76.0** (−20.6). ⚠️ **The signature of a bad ground joint, for next time:** strong line-locked 60 Hz with 120/180 harmonics, a 120 Hz that tracks the power supply, a broadband floor 15–25 dB high, and pickup that changes when the capsule moves — the joint fault turns the ground return into an impedance that everything couples across. Resolder before measuring anything else. ⚠️ **A shorted capsule is not a valid floor test on this adapter**: Sleeve-to-Ring-2 is the CTIA headset button, and the adapter logged `KEY_PLAYPAUSE` held for the whole short and released when the jumper came off, so the −91 dB it read may be a muted input. Terminate with ~2.2kΩ instead, which is above every headset-button band. The muffled capsule bounds the electronics floor instead: **at or below −69 dB in 1–8kHz, −83 above 8kHz**. **Wiring:** braid is ground, capsule − → Ring 2, + → Sleeve; a reversed capsule looks like an open input, not silence, and BirdNET-Go's level stats round it to `zero_pct: 100`. **BirdNET-Go has zero detections ever**; its only high-confidence result since reconnection was `Human` at 0.93, removed by the privacy filter, which fires continuously on indoor speech. **Sensitivity baseline recorded:** a 4 kHz tone at 30cm reads **−27.8 dBFS**, 0.4 dB spread, 2nd harmonic 70 dB down — the first repeatable sensitivity number this chain has had. ⚠️ It was taken *after* heat-shrinking got the capsule hot, so on its own it could not show whether the heat cost sensitivity; in the same setup reads −31.8 dBFS, 4 dB *lower*, so the heat did no measurable damage — the gap is capsule tolerance and placement. The node's SSH user is `pi`. |
+
+| 29 | 2026-10-01 | **AudioMoth works as a 384kHz USB mic — but not alongside the bird mic on the Pi 4's USB bus.** It shipped with the USB Microphone firmware (1.3.0, now **1.3.3**), and still showed no audio device, because ⚠️ **the switch decides the role**: at **USB/OFF** it is a configuration device only (HID + vendor class, `10c4:0002`); at **CUSTOM** it enumerates as `16d0:06f3` "384kHz AudioMoth USB Microphone", ALSA card `Microphone`, mono `S16_LE`, **384000 Hz only**. It has a **third** identity in the flash bootloader, `2544:0003` (Energy Micro EFM32 CDC), and the Flash App needs user access to all three — including the raw `/dev/bus/usb` node, since its helper uses libusb rather than hidraw. The udev rule that grants it must sort before `73-seat-late.rules` or `uaccess` silently does nothing. ⚠️ **On the Pi, it cannot record while the UGREEN streams**: `Not enough bandwidth for altsetting 1`, `usb_set_interface failed (-28)`. Both are 12M full-speed isochronous devices behind the Pi 4's single internal USB 2.0 hub, sharing one transaction translator; 384kHz × 2 bytes is ~768 bytes per 1ms frame and the UGREEN already holds its share. Unplugging the UGREEN made 384kHz record cleanly — confirmed contention, and **first to open wins**, so either mic could be the casualty after a reboot. Every USB 2.0 port on a Pi 4 shares that hub, so moving ports does nothing. **Fix: a multi-TT hub** (preferred, keeps 384kHz), or 256kHz (~512 bytes/frame, untested, still covers 128kHz). **No ultrasonic interference from the node:** band levels on the Pi match a quiet workstation within ~1 dB from 4–40kHz and 80–190kHz, with no narrow lines anywhere; 40–80kHz runs 2–3 dB higher but wanders, not a switching tone. **The AudioMoth's own floor has a broad hump at 16–32kHz**, about −53 dB per 2kHz band, identical on both machines — most likely the MEMS element's resonance, and the floor for faint bats in that range. |
 
 ---
 
@@ -2049,8 +2051,9 @@ The first repeatable sensitivity number for the mic chain. Ambient captures cann
 *Goal: second acoustic stream, high sample rate, own mast.*
 
 ### Hardware
-- [ ] **AudioMoth USB Microphone** — up to 384kHz, no phantom power, plain USB
-      audio device. Chosen for spectrum coverage and simple power.
+- [x] **AudioMoth USB Microphone** — up to 384kHz, no phantom power, plain USB
+      audio device. Chosen for spectrum coverage and simple power. **In hand, flashed
+      to USB Microphone firmware 1.3.3, configured for 384kHz — see "Bench test" below.**
 - [x] **The USB mic case in hand solves this.** A hard shell with a narrow
       opening at the mic element, so the board is protected while the element
       stays open to air — which is what the weatherproofing rules below require.
@@ -2062,7 +2065,10 @@ carries both its power and its data, and the bird box's Pi sees it as a locally
 attached mic. Simpler than the alternative, with nothing extra to power or
 maintain outdoors.
 
-- [ ] **Active USB extender**, good to ~10–15m (USB 2.0 passive tops out ~5m)
+- [ ] **Active USB extender**, good to ~10–15m (USB 2.0 passive tops out ~5m).
+      ⚠️ **Must not share a single transaction translator with the bird mic** — see the
+      bandwidth finding below. Prefer one built on a **multi-TT** hub chip, or put an MTT
+      hub between the Pi and both mics.
 - [ ] **Shielded cable, in its own conduit.** The bird box contains a buck
       converter and, later, a solar charge controller — both radiate into the
       20–100kHz band, and an unshielded USB run is an antenna pointed straight at
@@ -2070,6 +2076,96 @@ maintain outdoors.
 - [ ] *Fallback only if the mast exceeds extender range:* Pi Zero 2 W publishing
       RTSP over Ethernet, which is distance-indifferent. Adds a second outdoor
       computer — avoid unless geometry forces it.
+
+### Bench test — 2026-10-01
+#### The AudioMoth has three USB identities
+| Mode | Switch | USB ID | Presents |
+|---|---|---|---|
+| Configuration | **USB/OFF** | `10c4:0002` "AudioMoth" | HID + vendor class. No audio device |
+| Microphone | **CUSTOM** | `16d0:06f3` "384kHz AudioMoth USB Microphone" | ALSA card `Microphone`, mono `S16_LE`, 384000 Hz only |
+| Flash bootloader | (entered by the Flash App) | `2544:0003` "EFM32 USB CDC serial port device" | `/dev/ttyACM0` |
+
+- [x] ⚠️ **Configure at USB/OFF, record at CUSTOM.** A device at USB/OFF reports firmware
+      `AudioMoth-USB-Microphone` and is still not a microphone, which looks exactly like
+      the wrong firmware. The serial number in mic mode starts `0384_` — the configured
+      rate.
+- [x] Settings: 384kHz, gain Med, filter None, 48 Hz DC blocking **kept**, energy saver
+      off, low gain range off. Filter left off deliberately, to see the whole spectrum
+      before choosing one; a ~15kHz high-pass is the candidate, but it would cut local
+      crickets at 4–8kHz.
+- [x] Card name `Microphone` does not collide with the bird mic's `Audio`, so the
+      `plughw:Audio,0` publisher is unaffected.
+
+#### Flashing from Linux needs a udev rule
+The apps are `audiomoth-flash` and `audiomoth-mic` (`.deb` from the Open Acoustic Devices
+GitHub releases); flashing is the Flash App, settings are the Mic App. Without access to
+all three identities the Flash App says "No AudioMoth found", then fails mid-flash with
+"Communication Failure". `/etc/udev/rules.d/70-audiomoth.rules`:
+
+```
+SUBSYSTEM=="usb", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="0002", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="0002", TAG+="uaccess"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="2544", ATTRS{idProduct}=="0003", TAG+="uaccess"
+```
+
+- [x] ⚠️ **The `usb` line is the one that matters**: the apps' `usbhidtool` opens the raw
+      `/dev/bus/usb` node through libusb, not `/dev/hidraw*`. The failure is `EACCES` on
+      that node, visible only under `strace`.
+- [x] ⚠️ **The file must sort before `73-seat-late.rules`.** That is where `uaccess` tags
+      become ACLs; named `99-`, the tag is set and nothing happens.
+
+#### ⚠️ It cannot record alongside the bird mic — USB bandwidth
+```
+usb 1-1.1: Not enough bandwidth for altsetting 1
+usb 1-1.1: 1:1: usb_set_interface failed (-28)
+```
+
+`arecord` reports only `Unable to install hw params`, which reads like pass 23's period-size
+problem and is not; `plughw` does not help. `-28` is `ENOSPC`, and `dmesg` is where it
+shows.
+
+```
+xHCI root (480M)
+ └─ internal USB 2.0 hub (VIA 2109:3431, 480M) — every USB 2.0 port on a Pi 4
+     ├─ AudioMoth, 12M full-speed isochronous — ~768 bytes per 1ms frame at 384kHz
+     └─ UGREEN,    12M full-speed isochronous — the bird mic, already streaming
+```
+
+Full-speed devices behind a high-speed hub share its transaction translator, whose
+periodic budget is far smaller than the hub's 480M. **Confirmed by elimination:** with
+the UGREEN unplugged, 384kHz records cleanly. **First to open wins**, so after a reboot
+either mic can be the one that fails, depending on start order.
+
+- [ ] **Fix, preferred: a multi-TT USB 2.0 hub**, giving each mic its own translator. Keeps
+      384kHz. Check whether the active extender above is built on one.
+- [ ] *Fallback: 256kHz* — ~512 bytes per frame, which probably fits beside the UGREEN.
+      **Untested.** Still covers bats to 128kHz, and 256kHz is BirdNET-Go's advertised
+      bat maximum, but it gives up the specified rate.
+- [ ] Moving ports does nothing: all four share the internal hub's USB 2.0 path.
+
+#### Noise floor — no node interference, one inherent hump
+5 s captures at 384kHz, same settings, ffmpeg band filters → `volumedetect` mean (dB):
+
+| Band | Workstation | Pi, on PoE |
+|---|---|---|
+| 0–4kHz | −49.3 | −44.7 |
+| 4–16kHz | −63.3 to −56.4 | −63.3 to −57.6 |
+| **16–32kHz** | **−51.9 to −54.2** | **−52.6 to −54.4** |
+| 40–80kHz | −58.5 to −63.1 | −56.4 to −60.6 |
+| 80–190kHz | −64.2 to −68.2 | −63.8 to −68.0 |
+
+- [x] **No switching interference on the Pi.** A converter radiating ultrasound shows as
+      narrow lines at fixed frequencies; neither capture has any. The Phase 5 worry about
+      the buck converter is not borne out at the bench — re-check once the extender and
+      enclosure are in, since cable routing changes it.
+- [ ] 40–80kHz runs 2–3 dB higher on the Pi, but its strongest bin wanders (46,650 →
+      47,350 Hz between half-second windows) — broadband, and within what two locations
+      in the room explain. PoE versus USB-C with the AudioMoth recording would attribute
+      it, the same test that isolated the bird mic's 120 Hz in pass 28.
+- [x] ⚠️ **The 16–32kHz hump is the AudioMoth's own**, identical on both machines and per-Hz
+      higher than the audible band. Most likely the MEMS element's ultrasonic resonance —
+      unverified; covering the port would confirm. It sets the floor for faint bats
+      calling in that range.
 
 ### Weatherproofing — inverts the Phase 4 rules
 - [ ] **No foam, no fur.** Any membrane attenuates hard above 20kHz.
@@ -2282,8 +2378,9 @@ was wrong for 0.17 and the real lever is `alerts`/`detections` retention.
 | PUI AOM-5024L-HD-R ×2 | Bird mic capsule — **tested working**, one spare | 4 | ☑ |
 | UGREEN USB-3.5mm TRRS adapter | Bird mic input — **tested**: bias OK, flat 4–20kHz, no AGC, floor at or below −69 dB in 1–8kHz; ⚠️ a shorted input reads as a play/pause press | 4 | ☑ |
 | Shielded mic cable | Capsule → TRRS plug — **fitted**, braid to capsule − and Ring 2 | 4 | ☑ |
-| AudioMoth USB Mic + mic case | Ultrasonic — **in hand**; case has an open mic port, suits Phase 5 | 5 | ☑ |
+| AudioMoth USB Mic + mic case | Ultrasonic — **in hand**, USB Mic firmware 1.3.3 at 384kHz; case has an open mic port, suits Phase 5 | 5 | ☑ |
+| Multi-TT USB 2.0 hub | ⚠️ AudioMoth and bird mic cannot share the Pi 4's single TT — **required** at 384kHz, unless the extender has one | 5 | ☐ |
 | USB3 SSD 128GB | Pi boot + root — **in hand**, 269 MB/s measured | 2 | ☑ |
-| Active USB extender, shielded | AudioMoth → bird box | 5 | ☑ decided |
+| Active USB extender, shielded | AudioMoth → bird box — ⚠️ prefer a multi-TT hub chip | 5 | ☑ decided |
 | Solar panel | — | 6 | ☐ **sizing open** |
 | LiFePO4 + low-temp-cutoff BMS | — | 6 | ☐ |
