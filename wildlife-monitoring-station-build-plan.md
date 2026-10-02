@@ -2137,7 +2137,17 @@ the UGREEN unplugged, 384kHz records cleanly. **First to open wins**, so after a
 either mic can be the one that fails, depending on start order.
 
 - [ ] **Fix, preferred: a multi-TT USB 2.0 hub**, giving each mic its own translator. Keeps
-      384kHz. Check whether the active extender above is built on one.
+      384kHz. **Ordered 2026-10-01: Adafruit CH334F Mini 4-Port USB Hub Breakout** (product
+      5997) — WCH CH334F, MTT stated by the vendor, 32 × 20mm. On arrival:
+      - Confirm `bDeviceProtocol 2` (multi-TT) in `lsusb -v`, and whether it reports
+        self-powered — bus-powered lets Linux cap each port at 100 mA.
+      - Feed its 5V header pin from the buck converter, data only to the Pi. The Pi 4's
+        USB ports share ~1.2 A and the SSD takes up to ~0.8 A of it under write. Same rail,
+        so no backfeed. ⚠️ Confirm the buck's current rating covers Pi + hub, ~3.5 A.
+      - Downstream ports are pins, not sockets — solder or crimp the UGREEN and extender.
+        Keep the board away from the bird mic leads.
+      - The test that closes this: bird mic streaming through mediamtx and the AudioMoth at
+        384kHz together, with no `-28` in `dmesg`.
 - [ ] *Fallback: 256kHz* — ~512 bytes per frame, which probably fits beside the UGREEN.
       **Untested.** Still covers bats to 128kHz, and 256kHz is BirdNET-Go's advertised
       bat maximum, but it gives up the specified rate.
@@ -2379,7 +2389,7 @@ was wrong for 0.17 and the real lever is `alerts`/`detections` retention.
 | UGREEN USB-3.5mm TRRS adapter | Bird mic input — **tested**: bias OK, flat 4–20kHz, no AGC, floor at or below −69 dB in 1–8kHz; ⚠️ a shorted input reads as a play/pause press | 4 | ☑ |
 | Shielded mic cable | Capsule → TRRS plug — **fitted**, braid to capsule − and Ring 2 | 4 | ☑ |
 | AudioMoth USB Mic + mic case | Ultrasonic — **in hand**, USB Mic firmware 1.3.3 at 384kHz; case has an open mic port, suits Phase 5 | 5 | ☑ |
-| Multi-TT USB 2.0 hub | ⚠️ AudioMoth and bird mic cannot share the Pi 4's single TT — **required** at 384kHz, unless the extender has one | 5 | ☐ |
+| Adafruit CH334F Mini 4-Port USB Hub (5997) | Multi-TT hub — AudioMoth and bird mic cannot share the Pi 4's single TT; **ordered 2026-10-01**. 5V from the buck, pins not sockets | 5 | ☑ ordered |
 | USB3 SSD 128GB | Pi boot + root — **in hand**, 269 MB/s measured | 2 | ☑ |
 | Active USB extender, shielded | AudioMoth → bird box — ⚠️ prefer a multi-TT hub chip | 5 | ☑ decided |
 | Solar panel | — | 6 | ☐ **sizing open** |
