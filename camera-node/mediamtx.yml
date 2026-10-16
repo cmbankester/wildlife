@@ -870,29 +870,41 @@ pathDefaults:
 # for example "~^(test1|test2)$" will match both "test1" and "test2",
 # for example "~^prefix" will match all paths that start with "prefix".
 paths:
+  # Feeder camera. Published by GStreamer through the hardware JPEG encoder; see
+  # feeder-gst.sh. MediaMTX's own rpiCamera source encodes MJPEG in software, about
+  # 100% of a core. Its settings are kept below, commented, as the fallback: restore
+  # them and delete the three publisher lines to go back.
   feeder:
-    source: rpiCamera
-    rpiCameraCodec: mjpeg
-    rpiCameraMJPEGQuality: 85
-    rpiCameraWidth: 1920
-    rpiCameraHeight: 1440
-    rpiCameraMode: "2028:1520:10:P"
-    rpiCameraFPS: 10
-    rpiCameraIDRPeriod: 10
-    rpiCameraBitrate: 14000000
-    rpiCameraH264Profile: main
-    rpiCameraShutter: 0           # auto for now — focus first, lock later
-    rpiCameraGain: 0
-    rpiCameraAWB: auto
-    rpiCameraDenoise: "cdn_off"
+    source: publisher
+    runOnInit: /usr/local/bin/feeder-gst.sh
+    runOnInitRestart: yes
+  # Fallback, MediaMTX's rpiCamera source:
+  #   source: rpiCamera
+  #   rpiCameraCodec: mjpeg
+  #   rpiCameraMJPEGQuality: 85
+  #   rpiCameraWidth: 1920
+  #   rpiCameraHeight: 1440
+  #   rpiCameraMode: "2028:1520:10:P"
+  #   rpiCameraFPS: 10
+  #   rpiCameraIDRPeriod: 10
+  #   rpiCameraBitrate: 14000000
+  #   rpiCameraH264Profile: main
+  #   rpiCameraShutter: 0           # auto for now — focus first, lock later
+  #   rpiCameraGain: 0
+  #   rpiCameraAWB: auto
+  #   rpiCameraDenoise: "cdn_off"
 
-  focus:
-    source: rpiCamera
-    rpiCameraSecondary: true
-    rpiCameraWidth: 1024
-    rpiCameraHeight: 768
-    rpiCameraFPS: 10
-    rpiCameraMJPEGQuality: 85
+  # Focus preview: a secondary 1024x768 MJPEG stream. Disabled because the secondary
+  # stream encodes continuously in software whether or not anyone is watching it,
+  # about 0.3 of a core on a Pi that already runs hot. It is a secondary stream of the
+  # rpiCamera source, so it only works with the feeder fallback restored.
+  # focus:
+  #   source: rpiCamera
+  #   rpiCameraSecondary: true
+  #   rpiCameraWidth: 1024
+  #   rpiCameraHeight: 768
+  #   rpiCameraFPS: 10
+  #   rpiCameraMJPEGQuality: 85
 
   # Bird mic. LPCM (uncompressed) so nothing is lost before BirdNET sees it;
   # 48kHz mono is 768 kbps, trivial on wired ethernet. plughw: not hw: -- the raw
