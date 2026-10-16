@@ -1,7 +1,7 @@
 # Backyard Wildlife Monitoring Station — Build Plan
 
-**Status:** 🔨 Phase 3 — enclosure build started — Pass 30
-**Last updated:** 2026-10-14
+**Status:** 🔨 Phase 3 — enclosure build started — Pass 31
+**Last updated:** 2026-10-16
 
 A local-inference camera + acoustic station for bird ID (image + sound), with a
 parallel ultrasonic channel for bats and orthoptera. No third-party inference.
@@ -50,6 +50,8 @@ parallel ultrasonic channel for bats and orthoptera. No third-party inference.
 
 | 30 | 2026-10-14 | **The multi-TT hub does not fix the bandwidth conflict on a Pi 4 — but 250kHz does, and 250kHz is the right rate anyway.** The Adafruit CH334F arrived and is multi-TT as claimed — `bDeviceProtocol 2`, Linux selects the per-port-TT setting — yet with it, 384kHz beside the bird mic failed **5 of 6** attempts with the same `-28`, in both port arrangements; the one pass (2026-10-05) is unexplained. Each mic fits its own translator many times over (768 and 96 bytes per frame), so ⚠️ **the Pi 4's host controller appears to budget all full-speed isochronous traffic as one pool, hub or no hub** — a hypothesis, but the only one consistent with every result. At **250kHz** (~500 bytes/frame) both mics stream together cleanly: 10 s from the AudioMoth, the bird stream gapless throughout, no `-28`. So the pool sits between ~600 and ~860 bytes per frame. **250kHz is also what the classifier wants**: BirdNET-Go's bat models expect **256kHz**, so 384kHz was being resampled away; the AudioMoth offers 192/250/384 and no 256, and 250kHz still reaches 125kHz, above every Louisiana bat call. The publisher will resample 250→256kHz. ⚠️ **Expansion must go through high-speed (480M) devices** — a multichannel USB 2.0 interface carries many mics and bypasses translators entirely — or through more network nodes; another full-speed mic will not fit. The hub stays: it moved downstream power off the Pi. ⚠️ **Two power-on resets on 2026-10-05** (`vcgencmd get_rsts` = `1000`), each when a device was plugged into the hub while it drew from the Pi's USB port — a plausible mechanism for pass 21's truncated files too. The hub now takes 5V from the buck through its header, with the cable's VBUS capped, and a hot swap since then did not reset; **the 5V rail measurement owed since pass 25 is now overdue.** |
 
+| 31 | 2026-10-16 | **The camera was being encoded in software, and that was the heat.** ⚠️ Pass 17's switch to MJPEG for full 1920×1440 quietly moved encoding onto the CPU: MediaMTX's `rpiCamera` MJPEG is single-threaded libjpeg-turbo — its camera helper (v2.8.0, bundled with MediaMTX v1.20.1) has no hardware JPEG path at all — so locked decision #4's reason for choosing a Pi 4 had silently stopped applying. One thread sat at 99% of a core, and the always-on `focus` secondary stream added another ~0.3. The Pi idled at **69.6°C at ~24°C ambient**, a 45.7°C rise with nothing extra running. **Fixed in two steps.** The focus path is commented out (129% → 102.5% CPU). Then the camera moved to a **GStreamer publisher** — `libcamerasrc` pinned to the binned 2028×1520 10-bit mode → **`v4l2video31jpegenc`**, the hardware JPEG image encoder, at quality 85 → `rtspclientsink` — run by MediaMTX with `runOnInitRestart`. Offline, the encoder does 1920×1440 at **93 fps** with quality equal to or better than libjpeg on the same frame. Live: system CPU **~30% → ~8%**, SoC **66–71°C → 56°C**, Frigate 10.1 fps, zero skipped, and it starts by itself from a cold boot. ⚠️ Plain `v4l2jpegenc` binds `/dev/video11`'s bitrate-capped MJPEG instead, at half the frame size. Costs: 86 packages including a libcamera upgrade that broke `rpicam-apps` 1.13.0 until 1.14.0, no denoise control, brighter auto-exposure, no focus preview. **The 5V rail is measured and fixed:** 4.90V idle had dipped below the 4.63V threshold for ~2 s during boot (`0x50000`); the converter now sits at 5.21V at its terminals, giving 5.10V idle, **5.01V at worst load, 5.04V minimum on a cold boot**, and clean flags. ⚠️ The converter's own display reads 0.14V high. **USB load tests:** the host controller budgets full-speed traffic by endpoint maximum packet size, not by the data flowing, and inbound traffic appears to cost about twice outbound; both mics plus 321 MB/s of SSD reads ran with zero gaps. One unexplained burst of `Non-monotonic DTS` in the bird publisher is logged as open. |
+
 ---
 
 ## Locked design decisions
@@ -68,6 +70,9 @@ These are settled. Don't re-litigate them on later passes without a reason.
    each RTSP stream spawns another FFmpeg process and three audio models load at
    once. The *camera node* is a **Pi 4**, chosen for its hardware H.264 encoder —
    less CPU, less heat, less power than a Pi 5, which has no hardware encoder.
+   ⚠️ *Pass 31:* from pass 17 to pass 31 this did not hold — MediaMTX's MJPEG is
+   software, and nobody checked. The camera now publishes through the Pi 4's hardware
+   **JPEG** encoder via GStreamer, so the reasoning applies again at full 1920×1440.
 5. **The bat mic gets its own mast**, but connects to the bird box by active USB.
    One computer outdoors, not two.
 6. **A good observation beats a confident label.** Optimize the pipeline for
@@ -900,10 +905,25 @@ post   temp=63.3'C  throttled=0x0
       control rx/tx`. Worth confirming rather than assuming: plenty of cheap splitters
       and arrestors pass only two pairs and silently force 100 Mbps, which would quietly
       void pass 21's note that going wired reopens the raw-video option.
-- [ ] ⚠️ **Still owed: a meter on the 5V rail under load.** `throttled=0x0` means the
-      rail never crossed the ~4.63V undervoltage threshold. It does not mean 5.1V. A
-      converter sitting at 4.8V passes every test above with nothing in reserve, and the
-      reserve is the whole point of setting 5.1V.
+- [x] **5V rail measured and set — 2026-10-16.** Meter at GPIO pins 2 and 6, with the
+      camera, both mics and the CH334F hub on the buck:
+
+      | Condition | At the Pi | At the converter terminals |
+      |---|---|---|
+      | As found, idle | 4.90V | — |
+      | As found, cold boot | **dipped below ~4.63V for ~2 s** at boot+10 s (`0x50000`) | — |
+      | After adjustment, idle | 5.10–5.12V (5.13V with the camera stopped) | 5.21V |
+      | Worst load — SSD reads + 1 GiB write bursts + both mics + one busy core | **5.01V minimum** | — |
+      | Cold boot after adjustment | **5.04V minimum**, ~5.09V average, flags `0x0` | — |
+
+      ⚠️ **The converter's built-in display reads 0.14V high** (5.35 against a meter's
+      5.21) — set it by meter, never by its display. ⚠️ **The hub's devices see the
+      converter's output, not the Pi's**: it feeds the hub directly, so keep the
+      terminals at or below the 5.25V USB limit. The 0.11V between the two is wiring drop
+      to the Pi; if 5.1V at the Pi ever needs more than 5.25V at the terminals, shorten or
+      thicken that wire rather than turning the converter up.
+- [x] The boot-time dip is the case `throttled=0x0` checks miss: the peak is every USB
+      device enumerating at once, ten seconds in, and the flags only say it happened.
 - [ ] Verification commands, for the next time this needs checking:
 
       ```bash
@@ -938,7 +958,7 @@ stream. Two routes to more pixels. They are not the same kind of change.
 | Encoder max, H.264 *and* MJPEG | 1920 px/axis | `v4l2-ctl` on `/dev/video11`, `/dev/video31` |
 | Encoder macroblock cap | 8192 (H.264 L4.1) | `encoder_create()` failure at 1920×1440 |
 | **ISP** max | **16384×16384** | `v4l2-ctl` on `/dev/video12` — the cap is the encoder, not the pipeline |
-| Hardware JPEG encoder | present | `/dev/video31 bcm2835-codec-encode_image` |
+| Hardware JPEG encoder | present; **1920×1440 at 93 fps**, quality-controlled (pass 31) | `/dev/video31 bcm2835-codec-encode_image` |
 | Node RAM | 1846 MB total, ~1574 free | **2 GB Pi 4**, not 4 or 8 |
 | Node storage | USB3 SSD, 269 MB/s write | `dd` O_DIRECT 3 GB on `/dev/sda2` |
 | Wifi throughput | ~100 Mbps sustained | 120 MB over SSH while streaming |
@@ -946,8 +966,11 @@ stream. Two routes to more pixels. They are not the same kind of change.
 
 #### Route A — MJPEG at 1920×1440
 
-Config only. MediaMTX already supports `rpiCameraCodec: mjpeg` and the hardware JPEG
-encoder exists, so this costs nothing but a restart.
+~~Config only. MediaMTX already supports `rpiCameraCodec: mjpeg` and the hardware JPEG
+encoder exists, so this costs nothing but a restart.~~ ⚠️ **Wrong, found in pass 31.**
+MediaMTX's `mjpeg` never touches the hardware encoder: it is libjpeg-turbo on one core.
+Route A ran in software from pass 17 to pass 31, at ~100% of a core. It now runs through
+GStreamer and `/dev/video31` instead — see `camera-node/README.md` and pass 31.
 
 - 2.76 MP, 90% of 2028×1520's linear resolution
 - **Intra-only**: no inter-frame compression, so the snapshot JPEG is the only lossy
@@ -2047,6 +2070,17 @@ The first repeatable sensitivity number for the mic chain. Ambient captures cann
       result so far is `Human` at 0.98; that is the filter working, not a fault.
 - [ ] Windscreen, fur cover and the soft non-resonant mount are still outstanding — see
       the capsule checklist at the top of this phase.
+- [ ] ⚠️ **Unexplained: a burst of `Non-monotonic DTS` in the bird publisher** (pass 31).
+      It began 503 s after a boot, during the first USB admission run, at 300–500
+      warnings a second — ffmpeg clamping every packet's timestamp, so the stream's clock
+      froze while audio kept flowing — and lasted ~4 minutes until the publisher was
+      restarted. Not reproduced by UGREEN playback, by a refused playback open, or by a
+      clock step: the journal shows none that boot. If it recurs, restarting the
+      publisher clears it; watch for it with
+      `journalctl -u mediamtx --since -1min | grep -c Non-monotonic`.
+- [x] ⚠️ **Restart the publisher by exact match**, `pgrep -x ffmpeg` or `pgrep -f '^ffmpeg
+      .*plughw:Audio'`. A bare `pgrep -f 'ffmpeg.*plughw:Audio'` also matches the shell
+      running the command, and killing it ends your own session (pass 31).
 
 ## Phase 5 — Ultrasonic channel: bats + orthoptera
 
@@ -2194,12 +2228,48 @@ boot. The mechanism is presumably inrush through the Pi's own 5V rail.
       Pi: D+, D−, GND and drain from a cut USB-A plug cable, **VBUS capped** so the Pi's USB
       supply and the buck never meet on the hub. Separate pair from the buck's terminals.
 - [x] One hot swap since then (2026-10-14) did not reset the Pi. One is not proof.
-- [ ] ⚠️ **Do not hot-plug until the 5V rail is measured** under load — the item owed since
-      pass 25, and now the hub shares the rail. Record the buck's model and current rating:
-      Pi + SSD + hub wants ~3.5 A.
+- [x] **The 5V rail is measured** (pass 31, Phase 2 power section): 5.01V at worst load and
+      5.04V on a cold boot, with the converter at 5.21V. The sag that made hot-plug resets
+      plausible is gone. ⚠️ Still prefer plugging with the Pi off — it costs nothing and
+      the SSD is what a reset risks.
+- [ ] Record the buck's model and current rating: Pi + SSD + hub wants ~3.5 A.
 - [ ] Pass 21's emptied NetworkManager profiles and 0-byte netplan files coincided with
       the camera being unplugged. A power-on reset mid-write produces exactly that; it fits,
       and is not proven.
+
+#### USB load tests — 2026-10-16
+**Admission matrix.** The UGREEN's playback side is a free, adjustable load: silence at
+S16 stereo reserves 384 bytes per frame and S24 stereo 576, on a different device from
+the AudioMoth. The bird capture (96 bytes) ran throughout.
+
+| Loads open beside the bird capture | Bytes per frame | Result |
+|---|---|---|
+| Playback S16 / S24 alone | 480 / 672 | ok |
+| AudioMoth 250kHz alone | 596 | ok |
+| AudioMoth + playback S16 | **980** | **ok**, either order |
+| AudioMoth + playback S24 | 1172 | rejected, whichever opens second |
+| The same at 44.1kHz instead of 96kHz | — | identical |
+
+- [x] ⚠️ **Budgeting is by each endpoint's maximum packet size, not the data flowing**:
+      44.1kHz playback moves half the data of 96kHz and is admitted or refused the same.
+- [x] **A plain total does not fit**: 980 bytes admitted here, 864 refused (AudioMoth at
+      384kHz + capture) in pass 30. One model fits every point so far — inbound traffic
+      costs about twice outbound, against a limit of roughly 790–860 inbound-equivalent
+      bytes — which is the shape of USB 2.0 split transactions, where inbound needs
+      complete-split slots and outbound does not. A fit, not a proven mechanism.
+
+**Soak.** AudioMoth at 250kHz beside the bird mic, 60 s per phase:
+
+| Extra load | AudioMoth | Bird stream | Kernel |
+|---|---|---|---|
+| none | 15,000,000 samples, 0 gaps, 0 xruns | gapless | quiet |
+| **321 MB/s SSD reads** (same controller chip, USB3 side) | same | gapless | quiet |
+| 320 MB/s SSD reads + 384-byte playback | same | gapless | quiet |
+
+- [x] Heavy USB3 traffic does not disturb the full-speed audio. The bird stream was also
+      captured gapless for 215 s and 150 s across the runs.
+- [ ] Sample-clock accuracy is unmeasured: 60 s runs leave ±0.4% of ALSA buffering error.
+      A 10-minute run would resolve ~0.04%.
 
 #### Noise floor — no node interference, one inherent hump
 5 s captures at 384kHz, same settings, ffmpeg band filters → `volumedetect` mean (dB):
@@ -2364,6 +2434,15 @@ reduced margin.
   box. Log the empty enclosure in place over a full day, shaded and unshaded, before
   building cooling against an assumption — a sunshade over the box is the untested
   lever with the most leverage, and it is far cheaper than a thermal bridge.
+- **Pass 31 — a large part of the rise was avoidable software load.** Before: **69.6°C
+  idle at ~24°C ambient** (estimated from the room, not measured), with ~1.3 cores of
+  software JPEG encoding; one busy core plus SSD writes then reached 80.8°C in 75 s, and
+  four cores reached 82.3°C in 16 s. After moving encoding to hardware and dropping the
+  focus stream: **56°C idle**, a ~32°C rise, which puts the idle ambient ceiling near
+  **~48°C** instead of ~38°C. Still short of the 60–70°C box assumption, but the gap
+  roughly halves. ⚠️ Unexplained: before the fix, the idle rise (45.7°C) exceeded pass
+  25's *loaded* rise (41.5°C) with the same camera config — bench position or the pass 25
+  ambient reading are the suspects.
 
 1. **Full-resolution capture — MJPEG or a ring buffer?** The encoder caps every
    streamed frame at 1920 px/axis, so 2028×1520 cannot leave the node encoded.
@@ -2371,7 +2450,8 @@ reduced margin.
    RAM ring buffer + retroactive fetch) is 12.33 MP but needs a custom libcamera app
    and abandons 2×2 binning. ⚠️ Decide with a real full-res still from the actual
    lens in hand — the glass may not resolve 1.55 µm pixels. See Phase 2,
-   "Full-resolution capture".
+   "Full-resolution capture". *Pass 31:* Route A is now hardware-encoded, which
+   removes its CPU cost from the comparison.
 2. **Motion masking against the real camera.** detect CPU hit 154% from wind.
    No longer blocks a purchase, but still the difference between a tidy system
    and a wasteful one — and it determines sizing if compute ever moves. Bench
@@ -2411,7 +2491,7 @@ was wrong for 0.17 and the real lever is `alerts`/`detections` retention.
 | Mosquitto (container) | MQTT broker / integration seam | 1 | ☑ decided |
 | Raspberry Pi 4 | Camera node — HW H.264 encode | 2 | ☑ decided |
 | PoE+ splitter → 12V | Node power | 2 | ☑ decided |
-| Buck converter 12V→5V | Pi supply | 2 | ☐ |
+| Buck converter 12V→5V | Pi + CH334F hub supply — **in use, set to 5.21V at terminals** (5.10V at the Pi); ⚠️ its display reads 0.14V high; model and current rating unrecorded | 2 | ☐ |
 | Ethernet surge arrestor | Lightning protection | 2 | ☐ |
 | 100×100×1mm fused quartz, DSP | Camera window — **in hand** | 3 | ☑ decided |
 | Neutral-cure silicone sealant | Bed the quartz compliantly — ⚠️ **never epoxy**, CTE mismatch | 3 | ☐ |
