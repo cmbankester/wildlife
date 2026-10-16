@@ -1,6 +1,6 @@
 # Backyard Wildlife Monitoring Station — Build Plan
 
-**Status:** 🔨 Phase 3 — enclosure build started — Pass 31
+**Status:** 🔨 Phase 3 — enclosure build started — Pass 32
 **Last updated:** 2026-10-16
 
 A local-inference camera + acoustic station for bird ID (image + sound), with a
@@ -51,6 +51,8 @@ parallel ultrasonic channel for bats and orthoptera. No third-party inference.
 | 30 | 2026-10-14 | **The multi-TT hub does not fix the bandwidth conflict on a Pi 4 — but 250kHz does, and 250kHz is the right rate anyway.** The Adafruit CH334F arrived and is multi-TT as claimed — `bDeviceProtocol 2`, Linux selects the per-port-TT setting — yet with it, 384kHz beside the bird mic failed **5 of 6** attempts with the same `-28`, in both port arrangements; the one pass (2026-10-05) is unexplained. Each mic fits its own translator many times over (768 and 96 bytes per frame), so ⚠️ **the Pi 4's host controller appears to budget all full-speed isochronous traffic as one pool, hub or no hub** — a hypothesis, but the only one consistent with every result. At **250kHz** (~500 bytes/frame) both mics stream together cleanly: 10 s from the AudioMoth, the bird stream gapless throughout, no `-28`. So the pool sits between ~600 and ~860 bytes per frame. **250kHz is also what the classifier wants**: BirdNET-Go's bat models expect **256kHz**, so 384kHz was being resampled away; the AudioMoth offers 192/250/384 and no 256, and 250kHz still reaches 125kHz, above every Louisiana bat call. The publisher will resample 250→256kHz. ⚠️ **Expansion must go through high-speed (480M) devices** — a multichannel USB 2.0 interface carries many mics and bypasses translators entirely — or through more network nodes; another full-speed mic will not fit. The hub stays: it moved downstream power off the Pi. ⚠️ **Two power-on resets on 2026-10-05** (`vcgencmd get_rsts` = `1000`), each when a device was plugged into the hub while it drew from the Pi's USB port — a plausible mechanism for pass 21's truncated files too. The hub now takes 5V from the buck through its header, with the cable's VBUS capped, and a hot swap since then did not reset; **the 5V rail measurement owed since pass 25 is now overdue.** |
 
 | 31 | 2026-10-16 | **The camera was being encoded in software, and that was the heat.** ⚠️ Pass 17's switch to MJPEG for full 1920×1440 quietly moved encoding onto the CPU: MediaMTX's `rpiCamera` MJPEG is single-threaded libjpeg-turbo — its camera helper (v2.8.0, bundled with MediaMTX v1.20.1) has no hardware JPEG path at all — so locked decision #4's reason for choosing a Pi 4 had silently stopped applying. One thread sat at 99% of a core, and the always-on `focus` secondary stream added another ~0.3. The Pi idled at **69.6°C at ~24°C ambient**, a 45.7°C rise with nothing extra running. **Fixed in two steps.** The focus path is commented out (129% → 102.5% CPU). Then the camera moved to a **GStreamer publisher** — `libcamerasrc` pinned to the binned 2028×1520 10-bit mode → **`v4l2video31jpegenc`**, the hardware JPEG image encoder, at quality 85 → `rtspclientsink` — run by MediaMTX with `runOnInitRestart`. Offline, the encoder does 1920×1440 at **93 fps** with quality equal to or better than libjpeg on the same frame. Live: system CPU **~30% → ~8%**, SoC **66–71°C → 56°C**, Frigate 10.1 fps, zero skipped, and it starts by itself from a cold boot. ⚠️ Plain `v4l2jpegenc` binds `/dev/video11`'s bitrate-capped MJPEG instead, at half the frame size. Costs: 86 packages including a libcamera upgrade that broke `rpicam-apps` 1.13.0 until 1.14.0, no denoise control, brighter auto-exposure, no focus preview. **The 5V rail is measured and fixed:** 4.90V idle had dipped below the 4.63V threshold for ~2 s during boot (`0x50000`); the converter now sits at 5.21V at its terminals, giving 5.10V idle, **5.01V at worst load, 5.04V minimum on a cold boot**, and clean flags. ⚠️ The converter's own display reads 0.14V high. **USB load tests:** the host controller budgets full-speed traffic by endpoint maximum packet size, not by the data flowing, and inbound traffic appears to cost about twice outbound; both mics plus 321 MB/s of SSD reads ran with zero gaps. One unexplained burst of `Non-monotonic DTS` in the bird publisher is logged as open. |
+
+| 32 | 2026-10-16 | **The box sits in shade, not sun, and that removes most of the thermal problem on paper.** The site is in shade or under a shade sail, and both mics live outside the box. The thermal open question was built on "60–70°C inside a sealed box *in sun*". Shaded, the interior should run only **~3–4°C above outdoor air**: ~8 W of dissipation over the box's ~0.27 m² at ~9 W/m²·K, with the 3mm ABS wall adding little resistance. Add pass 31's measured ~32°C SoC rise over its own air, and a 36°C shaded afternoon puts the SoC near **72°C**, under the 80°C soft limit. That is arithmetic, not measurement, and the enclosure log stays the deciding test. **The converter is identified: a DROK 6–32V → 1.5–32V adjustable buck**, rated 5 A with 4.5 A recommended and 75 W with 50 W recommended. It switches at 180 kHz, has short-circuit, over-temperature and reverse-input protection, and is **rated to +70°C** — which was the plan's own in-sun interior figure, so in sun its over-temperature cut-out would have been a power-loss risk. Shaded, it should sit around 40–45°C. Its display reads current as well as voltage, and both can be calibrated, so the never-measured 9–14 W load budget can now be read off it. With the capsule outside, the bird mic's close-range coupling test narrows to the cable entry and the UGREEN adapter. A sail overhead should also reduce pass 27's dawn fogging, since the window then sees the sail rather than a clear night sky — untested. |
 
 ---
 
@@ -924,6 +926,10 @@ post   temp=63.3'C  throttled=0x0
       thicken that wire rather than turning the converter up.
 - [x] The boot-time dip is the case `throttled=0x0` checks miss: the peak is every USB
       device enumerating at once, ten seconds in, and the flags only say it happened.
+- [ ] **Read the actual draw off the converter's display** (pass 32): it shows current as
+      well as voltage. Idle and under load, it replaces the never-measured 9–14 W load
+      budget above, and Phase 6's solar sizing depends on that figure. Calibrate the
+      display's voltage first: it reads 0.14V high.
 - [ ] Verification commands, for the next time this needs checking:
 
       ```bash
@@ -1115,8 +1121,11 @@ Useful to know before tuning anything:
       its own.
 - [ ] **All penetrations on the bottom face.** Cable glands sized to cable OD
       (PG7 = 3–6.5mm, PG9 = 4–8mm). Drip loops on every cable.
-- [ ] **Sunshade** standing 20–30mm off the box, open sides for airflow.
-      A box in sun hits 60–70°C and the Pi throttles hard.
+- [ ] **Shade — DECIDED (pass 32): site the box in shade or under a shade sail.** The sail
+      is the sunshade, so no box-mounted shade is planned. A box in direct sun was assumed
+      to reach 60–70°C, with the Pi throttling hard and the converter at its 70°C rating.
+      ⚠️ Check that low morning and late-afternoon sun cannot reach under the sail's edges
+      onto the box, especially its west face.
 - [ ] Fit **one extra gland now, blanked off**, for future expansion
 - [ ] Size the box for a future XLR audio interface if you ever go that route
 - [ ] ⚠️ **Close the box on a cool, dry morning, not a hot humid afternoon.** Whatever
@@ -1211,7 +1220,8 @@ Two things follow anyway:
 - [ ] ⚠️ **Cover it from the OUTSIDE** — white vinyl, tape or paint — not blacked out
       on the inside. A clear lid admits solar load directly onto the electronics, and
       absorbing it internally traps the heat. This plan's own figure is 60–70°C in a
-      sunlit box with the Pi throttling hard.
+      sunlit box with the Pi throttling hard. The box is now planned for shade (pass 32),
+      which makes the solar load smaller but not zero, and the glare argument unchanged.
 
 #### Window goes in a side wall, not the front
 - [ ] **Optical axis then runs along the box's longest internal dimension**, so the
@@ -1499,8 +1509,8 @@ front edge.
       — not optional with uncoated
       glass.** 8% of incoming light reflects off the two quartz surfaces and lands on
       the backboard, Pi and walls, then returns into the lens.
-- [ ] External hood over the window for flare and rain — separate from the box
-      sunshade.
+- [ ] External hood over the window for flare and rain — separate from the shade sail,
+      which is overhead and does not stop low-angle light or driven rain.
 - [ ] ⚠️ **Interior fogging is NOT handled by the Gore vent** — corrected pass 27,
       this line previously claimed it was. The vent passes water vapour freely; it
       equalises pressure and blocks the liquid phase. See "What the breather vent does".
@@ -1516,6 +1526,11 @@ front edge.
 - [ ] No mitigation is chosen yet. Assembly humidity and desiccant during drying-in are
       the cheap levers; anything better means keeping the pane warm, which fights the
       thermal budget rather than helping it.
+- [ ] **A shade sail should help, untested (pass 32).** The radiative-cooling argument rests
+      on the window looking at a clear night sky. Under a sail it looks at the sail, which
+      sits near air temperature, so the pane should cool less below ambient and fog less.
+      Siting the window to look out from under the sail, not toward open sky past its
+      edge, would keep that benefit.
 
 ### Build order — reversible before irreversible
 Two steps here cannot be undone, so everything that can be dry-fitted comes first.
@@ -2059,10 +2074,12 @@ The first repeatable sensitivity number for the mic chain. Ambient captures cann
       contending — if this becomes constant once the camera is back and detecting, that
       assumption needs revisiting rather than ignoring.
 - [x] **Shielded mic cable** — fitted 2026-09-30, resoldered 2026-10-01; see pass 28.
-- [ ] ⚠️ **Test coupling from the node's own electronics at close range.** Capsule and
-      cable right against the buck converter and PoE splitter, then ~30cm off, with a
-      2.2kΩ-terminated reference alongside. In the box the cable runs centimetres from both; pass
-      28 did not test this and it is the one hum question that transfers outdoors.
+- [ ] ⚠️ **Test coupling from the node's own electronics at close range — the cable entry
+      and the adapter only** (narrowed in pass 32). The capsule lives outside the box on its
+      standoff arm, so what shares the box with the buck converter and PoE splitter is the
+      cable's last stretch and the UGREEN adapter. Run those right against the converter,
+      then ~30cm off, with a 2.2kΩ-terminated reference alongside. Pass 28 did not test
+      this, and it is the one hum question that transfers outdoors.
 - [ ] **Prove bird → detection before deploying.** BirdNET-Go's `detections` table is
       empty — nothing has ever passed the 0.7 threshold. Play a known call from the Merlin
       library at the capsule and confirm a row lands. Indoors, the **privacy filter**
@@ -2232,7 +2249,10 @@ boot. The mechanism is presumably inrush through the Pi's own 5V rail.
       5.04V on a cold boot, with the converter at 5.21V. The sag that made hot-plug resets
       plausible is gone. ⚠️ Still prefer plugging with the Pi off — it costs nothing and
       the SSD is what a reset risks.
-- [ ] Record the buck's model and current rating: Pi + SSD + hub wants ~3.5 A.
+- [x] **Converter identified (pass 32): DROK adjustable buck, 5 A rated, 4.5 A
+      recommended.** Pi + SSD + hub peaks around 3.5 A, inside the recommendation. The
+      listing names an MP2304 chip, which does not obviously square with 5 A; treat the
+      rating as the listing's claim. See the parts list.
 - [ ] Pass 21's emptied NetworkManager profiles and 0-byte netplan files coincided with
       the camera being unplugged. A power-on reset mid-write produces exactly that; it fits,
       and is not proven.
@@ -2421,26 +2441,43 @@ Roughly in the order they'll block progress.
 the numbered list because it blocks the Phase 3 build already in progress.* Measured
 63.7°C mean and 65.2°C peak under load at 22.2°C ambient: a **41.5°C rise**, passive,
 with no cooling device registered. The Pi 4 soft-throttles at 80°C, so ambient has to
-stay under **~38°C**. This plan assumes **60–70°C** inside a sealed box in sun — a
+stay under **~38°C**. This plan assumed **60–70°C** inside a sealed box in sun — a
 25–30°C gap, whose failure mode is continuous hard throttling at 85°C rather than a
 reduced margin.
+
+**Pass 32 — the box sits in shade, which changes the premise.** It goes in shade or
+under a shade sail, so the in-sun figure does not apply. Estimated, not measured:
+
+```
+dissipation inside the box        ~8 W   (Pi, SSD, converter losses, camera)
+box surface                        ~0.27 m²  (225 x 325 x 115mm)
+convection + radiation             ~9 W/m²·K; the 3mm ABS wall adds little
+interior air above ambient         ~8 / (9 x 0.27)  ~=  3-4°C
+SoC above its own air (pass 31)    ~32°C, hardware-encoded, bench
+SoC on a 36°C shaded afternoon     ~36 + 4 + 32  ~=  72°C   (soft limit 80°C)
+converter (rated +70°C)            ~interior air + own losses  ~=  40-45°C
+```
+
+That leaves about 8°C of margin at a hot shaded peak, where the in-sun premise had
+none. The converter, which in sun would have sat at its own 70°C rating with an
+over-temperature cut-out that drops power to the Pi, is comfortable in shade.
 
 - A fan is ruled out twice over: an IP66 box has no airflow, and the PoE HAT was
   rejected in part for having one.
 - Conduction is what remains, and ABS runs ~0.17 W/m·K. The shell is not a radiator
   without a metal path through the wall, which then conducts solar heat *inward* and
   has to cross the seal.
-- ⚠️ **Measure before designing.** The 60–70°C figure has never been measured on this
-  box. Log the empty enclosure in place over a full day, shaded and unshaded, before
-  building cooling against an assumption — a sunshade over the box is the untested
-  lever with the most leverage, and it is far cheaper than a thermal bridge.
+- ⚠️ **Measure before designing.** Neither the 60–70°C in-sun figure nor the shaded
+  estimate has been measured on this box. Log the enclosure in place, under the sail,
+  over a full hot day — empty first, then populated — before building any cooling. The
+  shaded estimate says none is needed; the log is what confirms it.
 - **Pass 31 — a large part of the rise was avoidable software load.** Before: **69.6°C
   idle at ~24°C ambient** (estimated from the room, not measured), with ~1.3 cores of
   software JPEG encoding; one busy core plus SSD writes then reached 80.8°C in 75 s, and
   four cores reached 82.3°C in 16 s. After moving encoding to hardware and dropping the
   focus stream: **56°C idle**, a ~32°C rise, which puts the idle ambient ceiling near
-  **~48°C** instead of ~38°C. Still short of the 60–70°C box assumption, but the gap
-  roughly halves. ⚠️ Unexplained: before the fix, the idle rise (45.7°C) exceeded pass
+  **~48°C** instead of ~38°C. Still short of the 60–70°C in-sun assumption, but that
+  assumption no longer applies — see the shaded estimate above. ⚠️ Unexplained: before the fix, the idle rise (45.7°C) exceeded pass
   25's *loaded* rise (41.5°C) with the same camera config — bench position or the pass 25
   ambient reading are the suspects.
 
@@ -2491,7 +2528,7 @@ was wrong for 0.17 and the real lever is `alerts`/`detections` retention.
 | Mosquitto (container) | MQTT broker / integration seam | 1 | ☑ decided |
 | Raspberry Pi 4 | Camera node — HW H.264 encode | 2 | ☑ decided |
 | PoE+ splitter → 12V | Node power | 2 | ☑ decided |
-| Buck converter 12V→5V | Pi + CH334F hub supply — **in use, set to 5.21V at terminals** (5.10V at the Pi); ⚠️ its display reads 0.14V high; model and current rating unrecorded | 2 | ☐ |
+| Buck converter 12V→5V | **DROK adjustable buck, Amazon B07JZ2GQJF** — 6–32V in, 1.5–32V out, 5 A rated / 4.5 A recommended, 75 W / 50 W recommended, 180 kHz, CV/CC, short-circuit, over-temperature and reverse-input protection, rated −20 to +70°C. Feeds the Pi and the CH334F hub; **set to 5.21V at its terminals** (5.10V at the Pi). ⚠️ Display reads 0.14V high; it shows current too, and both can be calibrated | 2 | ☑ |
 | Ethernet surge arrestor | Lightning protection | 2 | ☐ |
 | 100×100×1mm fused quartz, DSP | Camera window — **in hand** | 3 | ☑ decided |
 | Neutral-cure silicone sealant | Bed the quartz compliantly — ⚠️ **never epoxy**, CTE mismatch | 3 | ☐ |
